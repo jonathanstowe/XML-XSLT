@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.13  2001/12/20 09:21:42  gellyfish
+#    More refactoring
+#
 #    Revision 1.12  2001/12/19 21:06:31  gellyfish
 #    * Some refactoring and style changes
 #
@@ -137,11 +140,10 @@ sub serve {
     $ret = $doctype . $ret;
   }
 
-  $self->{OUTPUT_ENCODING} ||= 'UTF-8';
 
-  if($args{xml_declaration}) {
-    $ret = '<?xml version="' . $args{xml_version} . '" encoding="' . 
-            $self->{OUTPUT_ENCODING} . '"?>'.  "\n" . $ret;
+  if($args{xml_declaration}) 
+  {
+    $ret = $self->xml_declaration() . "\n" . $ret;
   }
 
   if($args{http_headers}) {
@@ -152,6 +154,30 @@ sub serve {
   return $ret;
 }
 
+
+sub xml_declaration
+{
+   my ( $self, $xml_version, $output_encoding ) = @_;
+
+   $xml_version ||= '1.0';
+   $output_encoding ||= $self->output_encoding();
+
+   return qq{<?xml version="$xml_version" encoding="$output_encoding"?>};
+}
+   
+
+  
+sub output_encoding
+{
+   my ( $self,$encoding ) = @_;
+
+   if ( defined $encoding )
+   {
+      $self->{OUTPUT_ENCODING} = $encoding;
+   }
+
+   return exists $self->{OUTPUT_ENCODING} ? $self->{OUTPUT_ENCODING} : 'UTF-8';
+}
 
 sub doctype_system
 {
@@ -411,7 +437,9 @@ sub top_xsl_node
 
    return $self->{TOP_XSL_NODE};
 }
+
 # private auxiliary function #
+
 sub __get_stylesheet {
   my $self = shift;
   my $stylesheet;
@@ -422,7 +450,7 @@ sub __get_stylesheet {
     my ($ns, $tag) = split(':', $child->getTagName);
     if(not defined $tag) {
       $tag = $ns;
-      $ns  = $self->{DEFAULT_NS};
+      $ns  = $self->default_ns();
     }
     if ($tag eq 'stylesheet' ||
 	$tag eq 'transform') {
@@ -470,25 +498,25 @@ sub __extract_namespaces {
 
       # Take care of namespaces
       if ($pre eq 'xmlns' and not defined $post) {  
-	$self->{DEFAULT_NS} = '';
+	$self->default_ns('');
 
-	$self->{NAMESPACE}->{$self->{DEFAULT_NS}}->{namespace} = $value;
+	$self->{NAMESPACE}->{$self->default_ns()}->{namespace} = $value;
 	$self->xsl_ns('')
 	  if $value eq NS_XSLT;
-	$self->debug("Namespace `" . $self->{DEFAULT_NS} . "' = `$value'");
+	$self->debug("Namespace `" . $self->default_ns() . "' = `$value'");
       } elsif ($pre eq 'xmlns') {
 	$self->{NAMESPACE}->{$post}->{namespace} = $value;
 	$self->xsl_ns("$post:")
 	  if $value eq NS_XSLT;
 	$self->debug("Namespace `$post:' = `$value'");
       } else {
-	$self->{DEFAULT_NS} = '';
+	$self->default_ns('');
       }
 
       # Take care of versions
       if ($pre eq "version" and not defined $post) {
-	$self->{NAMESPACE}->{$self->{DEFAULT_NS}}->{version} = $value;
-	$self->debug("Version for namespace `" . $self->{DEFAULT_NS} .
+	$self->{NAMESPACE}->{$self->default_ns()}->{version} = $value;
+	$self->debug("Version for namespace `" . $self->default_ns() .
 		     "' = `$value'");
       } elsif ($pre eq "version") {
 	$self->{NAMESPACE}->{$post}->{version} = $value;
@@ -496,15 +524,27 @@ sub __extract_namespaces {
       }
     }
   }
-  if (not defined $self->{DEFAULT_NS}) {
-    ($self->{DEFAULT_NS}) = split(':', $self->top_xsl_node()->getTagName);
+  if (not defined $self->default_ns()) {
+    my ($dns) = split(':', $self->top_xsl_node()->getTagName);
+    $self->default_ns($dns);
   }
-  $self->debug("Default Namespace: `" . $self->{DEFAULT_NS} . "'");
-  $self->xsl_ns($self->{DEFAULT_NS}) unless $self->xsl_ns();
+  $self->debug("Default Namespace: `" . $self->default_ns() . "'");
+  $self->xsl_ns($self->default_ns()) unless $self->xsl_ns();
 
   $self->debug("XSL Namespace: `" .$self->xsl_ns() ."'");
   # ** FIXME: is this right?
-  $self->{NAMESPACE}->{$self->{DEFAULT_NS}}->{namespace} ||= NS_XHTML;
+  $self->{NAMESPACE}->{$self->default_ns()}->{namespace} ||= NS_XHTML;
+}
+
+sub default_ns
+{
+   my ( $self, $default_ns ) = @_;
+
+   if ( defined $default_ns )
+   {
+     $self->{DEFAULT_NS} = $default_ns;
+   }
+   return exists $self->{DEFAULT_NS} ? $self->{DEFAULT_NS} : undef;
 }
 
 sub xsl_ns
@@ -626,15 +666,37 @@ sub __add_default_templates {
 				 $self->top_xsl_node());
 }
 
+
+sub templates
+{
+   my ( $self, $templates ) = @_;
+
+   if ( defined $templates )
+   {
+      $self->{TEMPLATE} = $templates;
+   }
+
+   unless ( exists $self->{TEMPLATE} )
+   {
+      $self->{TEMPLATE} = [];
+      my $xsld = $self->xsl_document();
+      my $tag  = $self->xsl_ns() . 'template';
+
+      @{$self->{TEMPLATE}}  = $xsld->getElementsByTagName($tag);
+   }
+
+   return wantarray ? @{$self->{TEMPLATE}} : $self->{TEMPLATE};
+}
+
 # private auxiliary function #
 sub __cache_templates {
   my $self = $_[0];
 
-  $self->{TEMPLATE} = [$self->xsl_document()->getElementsByTagName ($self->xsl_ns() . 'template')];
 
   # pre-cache template names and matches #
   # reversing the template order is much more efficient #
-  foreach my $template (reverse @{$self->{TEMPLATE}}) {
+
+  foreach my $template (reverse $self->templates()) {
     if ($template->getParentNode->getTagName =~
 	/^([\w\.\-]+\:){0,1}(stylesheet|transform|include)/) {
       my $match = $template->getAttribute ('match');
@@ -689,12 +751,12 @@ sub __set_xsl_output {
     if ( $self->{OMIT_XML_DECL} eq 'no' ) {
       my $output_ver = $attribs->getNamedItem('version');
       my $output_enc = $attribs->getNamedItem('encoding');
-      $self->{OUTPUT_VERSION} = $output_ver->getNodeValue
+      $self->output_version($output_ver->getNodeValue)
 	if defined $output_ver;
-      $self->{OUTPUT_ENCODING} = $output_enc->getNodeValue
+      $self->output_encoding($output_enc->getNodeValue)
 	if defined $output_enc;
 
-      if (not $self->{OUTPUT_VERSION} || not $self->{OUTPUT_ENCODING}) {
+      if (not $self->output_version() || not $self->output_encoding()) {
 	$self->warn(qq{Expected attributes "version" and "encoding" in\n\t} .
 		    $self->xsl_ns() . "output");
       }
@@ -711,6 +773,18 @@ sub __set_xsl_output {
   } else {
     $self->debug("Default Output options being used");
   }
+}
+
+sub output_version
+{
+   my ( $self, $output_version ) = @_;
+
+   if ( defined $output_version )
+   {
+     $self->{OUTPUT_VERSION} = $output_version;
+   }
+
+   return exists $self->{OUTPUT_VERSION} ? $self->{OUTPUT_VERSION} : '1.0';
 }
 
 sub __get_attribute_sets
@@ -817,18 +891,7 @@ sub transform {
   $self->debug("processing project:");
   $self->_indent();
 
-  my $root_template = $self->_match_template("match", '/', 1, '');
-  croak "Can't find root template"
-    unless defined $root_template;
-
-  %topvariables = (%{$self->{VARIABLES}}, %topvariables);
-  $self->_evaluate_template ( $root_template,            # starting template: the root template
-			      $self->xml_document(),     # current XML node: the root
-			      '',                        # current XML selection path: the root
-			      $self->result_document(),  # current result tree node: the root
-			      {()},                      # current known variables: none
-			      \%topvariables             # previously known variables: top level variables
-			      );
+  $self->process(%topvariables);
 
   $self->debug("done!");
   $self->_outdent();
@@ -843,7 +906,10 @@ sub process {
 
   my $root_template = $self->_match_template ("match", '/', 1, '');
 
-  %topvariables = (%{$self->{VARIABLES}}, %topvariables);
+  %topvariables = (%topvariables, 
+                   defined $self->{VARIABLES} && ref $self->{VARIABLES} &&
+                           ref $self->{VARIABLES} eq 'ARRAY' ? 
+                                  @{$self->{VARIABLES}} : ());
 
   $self->_evaluate_template (
 			       $root_template, # starting template: the root template
@@ -954,9 +1020,9 @@ sub print_output {
     print "Content-type: " . $self->media_type() . "\n\n";
 
     if ($self->{METHOD} eq 'xml' || $self->{METHOD} eq 'html') {
-      if (($self->{OMIT_XML_DECL} eq 'no') && $self->{OUTPUT_VERSION}
-	  && $self->{OUTPUT_ENCODING}) {
-	print qq{<?xml version="$self->{OUTPUT_VERSION}" encoding="$self->{OUTPUT_ENCODING}"?>\n};
+      if ($self->{OMIT_XML_DECL} eq 'no') 
+      {      
+        print $self->xml_declaration(),"\n"; 
       }
     }
 
@@ -1131,7 +1197,8 @@ sub _match_template {
 	if (&__template_matches__ ($match, $select_value, $xml_count,
 				   $xml_selection_path)) {
 	  $self->debug(qq{  found #$count with "$match" in "$original_match"});
-	  $template = ${$self->{TEMPLATE}}[$count-1];
+
+	  $template = ($self->templates())[$count-1];
 	  return $template;
 	  #	  last;
 	}
@@ -1142,7 +1209,7 @@ sub _match_template {
 	if (&__template_matches__ ($full_match, $select_value, $xml_count,
 				   $xml_selection_path)) {
 	  $self->debug(qq{  found #$count with "$full_match" in "$original_match"});
-	  $template = ${$self->{TEMPLATE}}[$count-1];
+	  $template = ($self->templates())[$count-1];
 	  return $template;
 	  #          last;
 	} else {
@@ -1484,7 +1551,7 @@ sub _evaluate_element {
 
   if(not defined $xsl_tag) {
     $xsl_tag = $ns;
-    $ns = $self->{DEFAULT_NS};
+    $ns = $self->default_ns();
   } else {
     $ns .= ':';
   }
@@ -1606,14 +1673,14 @@ sub _check_attributes_and_recurse {
 
   $self->_add_node ($xsl_node, $current_result_node);
   $self->_attribute_value_of ($current_result_node->getLastChild,
-				$current_xml_node,
-				$current_xml_selection_path, $variables);
+                              $current_xml_node,
+                              $current_xml_selection_path, $variables);
   $self->_evaluate_template ($xsl_node, $current_xml_node,
-			       $current_xml_selection_path,
-			       $current_result_node->getLastChild, $variables, $oldvariables);
+                             $current_xml_selection_path,
+                             $current_result_node->getLastChild, 
+                             $variables, $oldvariables);
 }
 
-##JNS1812
 
 sub _element {
   my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
@@ -3018,11 +3085,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.12 $
+Revision: $Revision: 1.13 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/19 21:06:31 $
+      On: $Date: 2001/12/20 09:21:42 $
 
-  RCS ID: $Id: XSLT.pm,v 1.12 2001/12/19 21:06:31 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.13 2001/12/20 09:21:42 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
