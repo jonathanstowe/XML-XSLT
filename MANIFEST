@@ -34,6 +34,4 @@ examples/xmlspec.xsl
 examples/xpath.xsl
 examples/xslt.xsl
 t/00-load.t
-t/01-simple.t
-t/02-grammer.t
 xslt-parser
