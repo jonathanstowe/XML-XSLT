@@ -1,6 +1,6 @@
 #!/usr/bin/perl
-# Test select/match with various special paths
-# $Id: select.t,v 1.2 2004/02/19 08:38:41 gellyfish Exp $
+# Test foreach with various selects
+# $Id: for-each.t,v 1.1 2004/02/19 08:38:41 gellyfish Exp $
 
 use Test::More tests => 4;
 
@@ -18,13 +18,12 @@ eval
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc">
-    <xsl:apply-templates select="processing-instruction()"/>
-</xsl:template>
-                                                                                
-<xsl:template match="processing-instruction()">
-  <out>
-  <xsl:value-of select="."/>
-  </out>
+<out>
+    <xsl:for-each select="processing-instruction()">
+     <pi><xsl:value-of select="." />
+     </pi>
+    </xsl:for-each>
+</out>
 </xsl:template>
 </xsl:stylesheet>
 EOS
@@ -33,6 +32,7 @@ EOS
 <?xml version="1.0"?>
 <doc>
 <?PITarget Processing-Instruction 1 type='text/xml'?>
+<?PITarget Processing-Instruction 2 type='text/xml'?>
 </doc>
 EOX
                                                                                 
@@ -40,12 +40,12 @@ EOX
                                                                                 
   $parser->transform(\$xml);
                                                                                 
-  my $wanted = q%<out>Processing-Instruction 1 type='text/xml'</out>%;
+  my $wanted = q%<out><pi>Processing-Instruction 1 type='text/xml'</pi><pi>Processing-Instruction 2 type='text/xml'</pi></out>%;
   my $outstr =  $parser->toString;
   die "$outstr ne $wanted\n" unless $outstr eq $wanted;
 };
 
-ok(!$@,"select single processing-instruction()");
+ok(!$@,"select multiple processing-instruction()");
 
 eval
 {

@@ -6,6 +6,11 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.25  2004/02/19 08:38:40  gellyfish
+#    * Fixed overlapping attribute-sets
+#    * Allow multiple nodes for processing-instruction() etc
+#    * Added test for for-each
+#
 #    Revision 1.24  2004/02/18 08:34:38  gellyfish
 #    * Fixed select on "comment()" "processing-instruction()" etc
 #    * Added test for select
@@ -97,7 +102,7 @@ use constant NS_XHTML => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.47';
+$VERSION = '0.48';
 
 @ISA       = qw( Exporter );
 @EXPORT_OK = qw( &transform &serve );
@@ -281,6 +286,11 @@ sub debug
 {
     my $self = shift;
     my $arg  = shift || "";
+
+	 if ($self->{DEBUG} and $self->{DEBUG} > 1 )
+	 {
+        $arg  = (caller(1))[3] . ": $arg";
+	 }
 
     print STDERR " " x $self->{INDENT}, "$arg\n"
       if $self->{DEBUG};
@@ -1090,7 +1100,15 @@ sub __attribute_set_
 
     if ( defined $attr_hash && defined $name )
     {
-        $self->{ATTRIBUTE_SETS}->{$name} = $attr_hash;
+		  if ( exists $self->{ATTRIBUTE_SETS}->{$name}  )
+		  {
+		     %{$self->{ATTRIBUTE_SETS}->{$name}} = 
+			               ( %{$self->{ATTRIBUTE_SETS}->{$name}}, %{$attr_hash});
+		  }
+		  else
+		  {
+           $self->{ATTRIBUTE_SETS}->{$name} = $attr_hash;
+		  }
     }
 
     return defined $name
@@ -1918,6 +1936,7 @@ sub _for_each
         $current_result_node, $variables, $oldvariables )
       = @_;
 
+    my $ns = $self->xsl_ns();
     my $select = $xsl_node->getAttribute('select')
       || die "No `select' attribute in for-each element";
 
@@ -1936,9 +1955,20 @@ sub _for_each
         $self->debug(
 qq{applying template for each child $select of "$current_xml_selection_path":}
         );
-        my $children =
-          $self->_get_node_set( $select, $self->xml_document(),
-            $current_xml_selection_path, $current_xml_node, $variables );
+
+
+        my $children = $self->_get_node_set( $select, 
+					                              $self->xml_document(),
+                                             $current_xml_selection_path, 
+															$current_xml_node, $variables );
+
+		  my $sort = $xsl_node->getElementsByTagName("$ns:sort",0);
+
+        if ( my $nokeys = $sort->getLength() )
+		  {
+		     $self->debug("going to sort with $nokeys");
+		  }
+		  
         $self->_indent();
         my $count = 1;
         foreach my $child (@$children)
@@ -1982,7 +2012,6 @@ qq{applying template for each child $select of "$current_xml_selection_path":}
     }
     else
     {
-        my $ns = $self->xsl_ns();
         $self->warn(qq%expected attribute "select" in <${ns}for-each>%);
     }
 
@@ -2627,7 +2656,6 @@ sub __try_a_step__
 {
     my ( $self, $path, $node, $silent ) = @_;
 
-	 # study($path);
 
 	 $self->_indent();
 	 $self->debug("Trying $path >");
@@ -2854,9 +2882,8 @@ sub __get_nodes__
     {
         if ( $child->getNodeType == $node_type )
         {
-            $result =
-              [ @$result,
-                &__get_node_set__( $self, $path, [$child], $silent ) ];
+            push @{$result}, @{$self->__get_node_set__($path, 
+									                            [$child], $silent )};
         }
     }
     $self->_outdent();
@@ -2866,7 +2893,7 @@ sub __get_nodes__
         $self->debug("failed!");
     }
 
-    return $result->[0];
+    return $result;
 }
 
 sub _attribute_value_of
@@ -4007,11 +4034,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.24 $
+Revision: $Revision: 1.25 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/18 08:34:38 $
+      On: $Date: 2004/02/19 08:38:40 $
 
-  RCS ID: $Id: XSLT.pm,v 1.24 2004/02/18 08:34:38 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.25 2004/02/19 08:38:40 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

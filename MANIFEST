@@ -45,6 +45,7 @@ t/comment.t
 t/copy.t
 t/doe.t
 t/features.t
+t/for-each.t
 t/forward.t
 t/output.t
 t/params.t
