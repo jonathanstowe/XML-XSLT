@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.12  2001/12/19 21:06:31  gellyfish
+#    * Some refactoring and style changes
+#
 #    Revision 1.11  2001/12/19 09:11:14  gellyfish
 #    * Added more accessors for object attributes
 #    * Fixed potentially broken usage of $variables in _evaluate_template
@@ -46,6 +49,7 @@ use File::Basename qw(dirname);
 use Carp;
 
 # Namespace constants
+
 use constant NS_XSLT         => 'http://www.w3.org/1999/XSL/Transform';
 use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
@@ -126,15 +130,10 @@ sub serve {
     }
   }
 
-  if ($self->{DOCTYPE_SYSTEM} or $self->{DOCTYPE_PUBLIC}) {
-    my $root_name = $self->result_document()->getElementsByTagName('*',0)->item(0)->getTagName();
-    my $doctype;
-    if ($self->{DOCTYPE_PUBLIC}) {
-      $doctype = qq{<!DOCTYPE $root_name PUBLIC "} . $self->{DOCTYPE_PUBLIC} .
-      qq{" "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
-    } else {
-      $doctype = qq{<!DOCTYPE $root_name SYSTEM "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
-    }
+
+
+  if (my $doctype = $self->doctype()) 
+  {
     $ret = $doctype . $ret;
   }
 
@@ -153,6 +152,30 @@ sub serve {
   return $ret;
 }
 
+
+sub doctype_system
+{
+   my ( $self, $doctype ) = @_;
+
+   if ( defined $doctype ) 
+   {
+      $self->{DOCTYPE_SYSTEM} = $doctype;
+   }
+
+   return $self->{DOCTYPE_SYSTEM};
+}
+
+sub doctype_public
+{
+   my ( $self, $doctype ) = @_;
+
+   if ( defined $doctype ) 
+   {
+      $self->{DOCTYPE_PUBLIC} = $doctype;
+   }
+
+   return $self->{DOCTYPE_PUBLIC};
+}
 
 sub result_document()
 {
@@ -367,7 +390,7 @@ sub __preprocess_stylesheet {
 
 # Why is this here when __get_first_element does, apparently, the same thing?
 # Because, in __get_stylesheet we warp the document.
-  $self->{TOP_XSL_NODE} = $self->xsl_document()->getFirstChild;
+  $self->top_xsl_node($self->xsl_document()->getFirstChild);
   $self->__expand_xsl_includes;
   $self->__extract_top_level_variables;
 
@@ -377,6 +400,17 @@ sub __preprocess_stylesheet {
   $self->__set_xsl_output;
 }
 
+sub top_xsl_node
+{
+   my ( $self, $top_xsl_node) = @_;
+
+   if ( defined $top_xsl_node )
+   {
+     $self->{TOP_XSL_NODE} = $top_xsl_node;
+   }
+
+   return $self->{TOP_XSL_NODE};
+}
 # private auxiliary function #
 sub __get_stylesheet {
   my $self = shift;
@@ -421,16 +455,16 @@ sub __get_first_element {
 
   $node = $node->getNextSibling
     until ref $node eq 'XML::DOM::Element';
-  $self->{TOP_XSL_NODE} = $node;
+  $self->top_xsl_node($node);
 }
 
 # private auxiliary function #
 sub __extract_namespaces {
   my ($self) = @_;
 
-  my $attr = $self->{TOP_XSL_NODE}->getAttributes;
+  my $attr = $self->top_xsl_node()->getAttributes;
   if(defined $attr) {
-    foreach my $attribute ($self->{TOP_XSL_NODE}->getAttributes->getValues) {
+    foreach my $attribute ($self->top_xsl_node()->getAttributes->getValues) {
       my ($pre, $post) = split(":", $attribute->getName, 2);
       my $value = $attribute->getValue;
 
@@ -463,7 +497,7 @@ sub __extract_namespaces {
     }
   }
   if (not defined $self->{DEFAULT_NS}) {
-    ($self->{DEFAULT_NS}) = split(':', $self->{TOP_XSL_NODE}->getTagName);
+    ($self->{DEFAULT_NS}) = split(':', $self->top_xsl_node()->getTagName);
   }
   $self->debug("Default Namespace: `" . $self->{DEFAULT_NS} . "'");
   $self->xsl_ns($self->{DEFAULT_NS}) unless $self->xsl_ns();
@@ -490,7 +524,7 @@ sub __expand_xsl_includes {
   my $self = shift;
 
   foreach my $include_node
-    ($self->{TOP_XSL_NODE}->getElementsByTagName($self->xsl_ns() . "include"))
+    ($self->top_xsl_node()->getElementsByTagName($self->xsl_ns() . "include"))
       {
     my $include_file = $include_node->getAttribute('href');
 
@@ -509,7 +543,7 @@ sub __expand_xsl_includes {
 
     $self->debug("inserting `$include_file'");
     $include_doc->setOwnerDocument($self->xsl_document());
-    $self->{TOP_XSL_NODE}->replaceChild($include_doc, $include_node);
+    $self->top_xsl_node()->replaceChild($include_doc, $include_node);
     $include_doc->dispose;
   }
 }
@@ -519,7 +553,7 @@ sub __extract_top_level_variables {
   my $self = $_[0];
 
   $self->debug("Extracting variables");
-  foreach my $child ($self->{TOP_XSL_NODE}->getElementsByTagName ('*',0)) {
+  foreach my $child ($self->top_xsl_node()->getElementsByTagName ('*',0)) {
     my ($ns, $tag) = split(':', $child);
 
     if(($tag eq '' && $self->xsl_ns() eq '') ||
@@ -552,7 +586,7 @@ sub __extract_top_level_variables {
 # private auxiliary function #
 sub __add_default_templates {
   my $self = $_[0];
-  my $doc  = $self->{TOP_XSL_NODE}->getOwnerDocument;
+  my $doc  = $self->top_xsl_node()->getOwnerDocument;
 
   # create template for '*' and '/'
   my $elem_template =
@@ -585,11 +619,11 @@ sub __add_default_templates {
   $self->debug("adding default templates to stylesheet");
   # add them to the stylesheet
   $self->xsl_document()->insertBefore($pi_template,
-				 $self->{TOP_XSL_NODE});
+				 $self->top_xsl_node);
   $self->xsl_document()->insertBefore($attr_template,
-				 $self->{TOP_XSL_NODE});
+				 $self->top_xsl_node());
   $self->xsl_document()->insertBefore($elem_template,
-				 $self->{TOP_XSL_NODE});
+				 $self->top_xsl_node());
 }
 
 # private auxiliary function #
@@ -667,10 +701,13 @@ sub __set_xsl_output {
     }
     my $doctype_public = $attribs->getNamedItem('doctype-public');
     my $doctype_system = $attribs->getNamedItem('doctype-system');
-    $self->{DOCTYPE_PUBLIC} = defined $doctype_public ?
-      $doctype_public->getNodeValue : '';
-    $self->{DOCTYPE_SYSTEM} = defined $doctype_system ?
-      $doctype_system->getNodeValue : '';
+    
+    my $dp = defined $doctype_public ?  $doctype_public->getNodeValue : '';
+
+    $self->doctype_public($dp);
+
+    my $ds = defined $doctype_system ?  $doctype_system->getNodeValue : '';
+    $self->doctype_system($ds);
   } else {
     $self->debug("Default Output options being used");
   }
@@ -922,14 +959,10 @@ sub print_output {
 	print qq{<?xml version="$self->{OUTPUT_VERSION}" encoding="$self->{OUTPUT_ENCODING}"?>\n};
       }
     }
-    if ($self->{DOCTYPE_SYSTEM}) {
-      my $root_name = $self->result_document()->getElementsByTagName('*',0)->item(0)->getTagName;
-      if ($self->{DOCTYPE_PUBLIC}) {
-	print qq{<!DOCTYPE $root_name PUBLIC "} . $self->{DOCTYPE_PUBLIC} .
-	  qq{" "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
-      } else {
-	print qq{<!DOCTYPE $root_name SYSTEM "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
-      }
+
+    if ( my $doctype = $self->doctype() )
+    {
+       print "$doctype\n";
     }
   }
 
@@ -950,7 +983,37 @@ sub print_output {
     print $self->output_string,"\n";
   }
 }
+
 *print_result = *print_output;
+
+sub doctype
+{
+   my ( $self ) = @_;
+
+   my $doctype = "";
+
+   if ($self->doctype_public() || $self->doctype_system()) 
+   {
+      my $root_name = $self->result_document()
+                           ->getElementsByTagName('*',0)->item(0)->getTagName;
+
+      if ($self->doctype_public()) 
+      {
+	$doctype = qq{<!DOCTYPE $root_name PUBLIC "} . 
+                   $self->doctype_public() .
+	           qq{" "} . $self->doctype_system() . qq{">};
+      } 
+      else 
+      {
+	 $doctype =  qq{<!DOCTYPE $root_name SYSTEM "} . 
+                     $self->doctype_system()
+                     . qq{">};
+      }
+   }
+  
+   $self->debug("returning doctype of $doctype");
+   return $doctype;
+}
 
 sub dispose {
   #my $self = $_[0];
@@ -1242,8 +1305,9 @@ sub _add_node {
   my ($self, $node, $parent, $deep, $owner) = @_;
   $owner ||= $self->xml_document();
 
-  $self->debug("adding node (deep)..") if defined $deep;
-  $self->debug("adding node (non-deep)..") unless defined $deep;
+  my $what = defined $deep ? 'deep' : 'non-deep';
+
+  $self->debug("adding node ($what)..");
 
   $node = $node->cloneNode($deep);
   $node->setOwnerDocument($owner);
@@ -1277,8 +1341,7 @@ sub _apply_templates {
 					$current_xml_node, $variables);
   } else {
     $self->debug(qq{applying templates on all children of "$current_xml_selection_path":});
-    my @children = $current_xml_node->getChildNodes;
-    $children = \@children;
+    $children = [ $current_xml_node->getChildNodes ];
   }
 
   $self->_process_with_params ($xsl_node, $current_xml_node,
@@ -1353,7 +1416,7 @@ sub _for_each {
   }
 
   if (defined $select) {
-    $self->debug("applying template for each child $select of \"$current_xml_selection_path\":");
+    $self->debug(qq{applying template for each child $select of "$current_xml_selection_path":});
     my $children = $self->_get_node_set ($select, $self->xml_document(),
 					   $current_xml_selection_path,
 					   $current_xml_node, $variables);
@@ -1702,7 +1765,7 @@ sub __string__ {
       }
     }
 
-    $self->debug("  \"$result\"");
+    $self->debug(qq{  "$result"});
     $self->_outdent();
   } else {
     $self->debug(" no result");
@@ -2287,7 +2350,7 @@ sub _copy_of {
 
   my $nodelist;
   my $select = $xsl_node->getAttribute('select');
-  $self->debug("evaluating copy-of with select \"$select\":");;
+  $self->debug(qq{evaluating copy-of with select "$select":});;
   
   $self->_indent();
   if ($select) {
@@ -2369,7 +2432,7 @@ sub _attribute {
       $current_result_node, $variables, $oldvariables) = @_;
   
   my $name = $xsl_node->getAttribute ('name');
-  $self->debug("inserting attribute named \"$name\":");
+  $self->debug(qq{inserting attribute named "$name":});
   $self->_indent();
 
   if ($name) {
@@ -2955,11 +3018,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.11 $
+Revision: $Revision: 1.12 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/19 09:11:14 $
+      On: $Date: 2001/12/19 21:06:31 $
 
-  RCS ID: $Id: XSLT.pm,v 1.11 2001/12/19 09:11:14 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.12 2001/12/19 21:06:31 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

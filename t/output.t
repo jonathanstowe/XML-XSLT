@@ -1,5 +1,5 @@
 # Test for 'output'  (which is hopefully fixed)
-# $Id: output.t,v 1.1 2001/12/17 11:32:09 gellyfish Exp $
+# $Id: output.t,v 1.2 2001/12/19 21:06:31 gellyfish Exp $
 
 use Test::More tests => 7;
 use strict;
@@ -72,7 +72,6 @@ ok($outstr eq $correct,"Output meets expectations - with toString");
 $correct =<<EOC;
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!DOCTYPE foo PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "">
-
 <foo>This is a test</foo>
 EOC
 
@@ -81,6 +80,7 @@ eval
    $outstr = $parser->serve(\$xml,http_headers => 0);
    die unless $outstr;
 };
+
 
 warn $outstr if $DEBUGGING;
 
