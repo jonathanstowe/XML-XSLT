@@ -677,10 +677,10 @@ sub AUTOLOAD {
   my $name = $AUTOLOAD;
   $name =~ s/.*://;
 
-  my %deprecation = ('output_string'      => 'asString',
-		     'result_string'      => 'asString',
-		     'output'             => 'asString',
-		     'result'             => 'asString',
+  my %deprecation = ('output_string'      => 'toString',
+		     'result_string'      => 'toString',
+		     'output'             => 'toString',
+		     'result'             => 'toString',
 		     'result_mime_type'   => 'media_type',
 		     'output_mime_type'   => 'media_type',
 		     'result_tree'        => 'to_dom',
@@ -2206,8 +2206,8 @@ __END__
 
  my $xslt = XML::XSLT->new ($xsl, warnings => 1);
 
- $xslt->transform ($xmlfile)
- print $xslt->asString
+ $xslt->transform ($xmlfile);
+ print $xslt->toString;
 
  $xslt->dispose ();
 
@@ -2639,11 +2639,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.5 $
+Revision: $Revision: 1.6 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/03/01 05:22:45 $
+      On: $Date: 2001/04/06 02:26:54 $
 
-  RCS ID: $Id: XSLT.pm,v 1.5 2001/03/01 05:22:45 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.6 2001/04/06 02:26:54 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
