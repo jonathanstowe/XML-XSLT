@@ -6,7 +6,7 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 # Now in Sourceforge,
-# $Id: XSLT.pm,v 1.3 2000/06/06 09:57:50 brong Exp $
+# $Id: XSLT.pm,v 1.4 2000/06/14 16:13:05 brong Exp $
 #
 ################################################################################
 
@@ -1034,11 +1034,11 @@ sub _value_of {
     print " "x$parser->{indent},"stripping node to text:$/" if $parser->{debug};
 
     $parser->{indent} += $parser->{indent_incr};
-      my $text = "";
+      my $text = undef;
       $text = $parser->__string__ ($$xml_node[0]) if @$xml_node;
     $parser->{indent} -= $parser->{indent_incr};
 
-    if ($text) {
+    if (defined($text)) {
       $parser->_add_node ($parser->{xml}->createTextNode($text), $current_result_node);
     } else {
       print " "x$parser->{indent},"nothing left..$/" if $parser->{debug};
