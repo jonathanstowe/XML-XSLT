@@ -2013,13 +2013,13 @@ sub __evaluate_test__ {
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
     my $expval=$2;
     my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
-    return 1 unless @$nodeset;
+    return ($expval ne '') unless @$nodeset;
     my $content = &__string__($Self,$$nodeset[0]);
     return ($content ne $expval);
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*=\s*['"](.*)['"]\s*$/) {
     my $expval=$2;
     my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
-    return 0 unless @$nodeset;
+    return ($expval eq '') unless @$nodeset;
     my $content = &__string__($Self,$$nodeset[0]);
     return ($content eq $expval);
   } else {
@@ -2642,11 +2642,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.20 $
+Revision: $Revision: 1.21 $
    Label: $Name:  $
 
 Last Chg: $Author: nejedly $ 
-      On: $Date: 2000/09/23 09:45:23 $
+      On: $Date: 2000/09/23 10:13:15 $
 
-  RCS ID: $Id: XSLT.pm,v 1.20 2000/09/23 09:45:23 nejedly Exp $
+  RCS ID: $Id: XSLT.pm,v 1.21 2000/09/23 10:13:15 nejedly Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
