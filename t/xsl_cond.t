@@ -1,4 +1,4 @@
-# $Id: xsl_cond.t,v 1.1 2000/09/23 09:45:23 nejedly Exp $
+# $Id: xsl_cond.t,v 1.2 2001/01/16 03:14:14 hexmode Exp $
 # check test attributes && the interface
 
 use strict;
@@ -10,7 +10,7 @@ print "ok 1\n";
 $loaded = 1;
 
 my $parser = eval { 
-XML::XSLT->new (\<<\EOS,warnings=>'Active');
+XML::XSLT->new (\<<\EOS);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>

@@ -2612,11 +2612,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.24 $
+Revision: $Revision: 1.1 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/01/06 07:18:18 $
+      On: $Date: 2001/01/16 03:14:14 $
 
-  RCS ID: $Id: XSLT.pm,v 1.24 2001/01/06 07:18:18 hexmode Exp $
-    Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
+  RCS ID: $Id: XSLT.pm,v 1.1 2001/01/16 03:14:14 hexmode Exp $
+    Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
