@@ -5,8 +5,6 @@
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
 #
-# $Id: XSLT.pm,v 1.12 2000/07/14 01:13:10 hexmode Exp $
-#
 ###############################################################################
 
 ######################################################################
@@ -59,16 +57,13 @@ use constant DEFAULT_NS        => 28;
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-BEGIN {
+$VERSION = '0.30';
 
-  $VERSION = '0.30';
+@ISA         = qw( Exporter );
+@EXPORT_OK   = qw( &transform &serve );
 
-  @ISA         = qw( Exporter );
-  @EXPORT_OK   = qw( &transform &serve );
-
-  # pretty print HTML tags (<BR /> etc...)
-  XML::DOM::setTagCompression (\&__my_tag_compression);
-}
+# pretty print HTML tags (<BR /> etc...)
+XML::DOM::setTagCompression (\&__my_tag_compression);
 
 my %deprecation_used;
 
@@ -247,8 +242,53 @@ sub __parse_args {
 sub __my_tag_compression {
   my ($tag, $elem) = @_;
 
-  # Print all tags as <tagname />
-  return 2;
+=begin internal_docs
+
+__my_tag_compression__( $tag, $elem )
+
+A function for DOM::XML::setTagCompression to determine the style for printing 
+of empty tags and empty container tags.
+
+XML::XSLT implements an XHTML-friendly style.
+
+Allow tag to be preceded by a namespace: ([\w\.]+\:){0,1}
+
+  <br> -> <br />
+
+  or
+
+  <myns:hr> -> <myns:hr />
+
+Empty tag list obtained from:
+
+  http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd
+
+According to "Appendix C. HTML Compatibility Guidelines",
+  C.3 Element Minimization and Empty Element Content
+
+  Given an empty instance of an element whose content model is not EMPTY
+  (for example, an empty title or paragraph) do not use the minimized form
+  (e.g. use <p> </p> and not <p />).
+
+However, the <p> tag is processed like an empty tag here!
+
+Tags allowed:
+
+  base meta link hr br param img area input col
+
+Special Case: p (even though it violates C.3)
+
+The tags are matched in order of expected common occurence.
+
+=end internal_docs
+
+=cut
+
+  $tag = [split ':', $tag]->[1] if index($tag, ':') >= 0;
+  return 2 if $tag =~ m/^(p|br|img|hr|input|meta|base|link|param|area|col)$/i;
+
+  # Print other empty tags like this: <empty></empty>
+  return 1;
 }
 
 
@@ -498,23 +538,28 @@ sub __set_xsl_output {
   if ($output) {
     # extraction and processing of the attributes
     my $attribs = $output->getAttributes;
-    $Self->[MEDIA_TYPE] = $attribs->getNamedItem('media-type')->getNodeValue;
-    $Self->[METHOD] = $attribs->getNamedItem('method')->getNodeValue;
+    my $media  = $attribs->getNamedItem('media-type');
+    my $method = $attribs->getNamedItem('method');
+    $Self->[MEDIA_TYPE] = $media->getNodeValue if defined $media;
+    $Self->[METHOD] = $method->getNodeValue if defined $method;
 
     if ($Self->[METHOD] eq 'xml') {
+      my $omit = $attribs->getNamedItem('omit-xml-declaration');
+      $Self->[OMIT_XML_DECL] = defined $omit->getNodeValue ?
+	$omit->getNodeValue : 'no';
 
-      my $omit_xml_declaration = $attribs->getNamedItem('omit-xml-declaration')->getNodeValue;
-
-      if ($omit_xml_declaration ne 'yes' && $omit_xml_declaration ne 'no') {
+      if ($Self->[OMIT_XML_DECL] ne 'yes' && $Self->[OMIT_XML_DECL] ne 'no') {
 	$Self->warn(qq{Wrong value for attribute "omit-xml-declaration" in$/\t} .
 		    $Self->[XSL_NS] . qq{output, should be "yes" or "no"});
-      } else {
-	$Self->[OMIT_XML_DECL] = $omit_xml_declaration;
       }
 
       if (! $Self->[OMIT_XML_DECL]) {
-	$Self->[OUTPUT_VERSION] = $attribs->getNamedItem('version')->getNodeValue;
-	$Self->[OUTPUT_ENCODING] = $attribs->getNamedItem('encoding')->getNodeValue;
+	my $output_ver = $attribs->getNamedItem('version')->getNodeValue;
+	my $output_enc = $attribs->getNamedItem('encoding')->getNodeValue;
+	$Self->[OUTPUT_VERSION] = $output_ver->getNodeValue
+	  if defined $output_ver;
+	$Self->[OUTPUT_ENCODING] = $output_enc->getNodeValue
+	  if defined $output_enc;
 
 	if (not $Self->[OUTPUT_VERSION] || not $Self->[OUTPUT_ENCODING]) {
 	  $Self->warn(qq{Expected attributes "version" and "encoding" in$/\t} .
@@ -522,8 +567,12 @@ sub __set_xsl_output {
 	}
       }
     }
-    $Self->[DOCTYPE_PUBLIC] = ($attribs->getNamedItem('doctype-public')->getNodeValue||'');
-    $Self->[DOCTYPE_SYSTEM] = ($attribs->getNamedItem('doctype-system')->getNodeValue||'');
+    my $doctype_public = $attribs->getNamedItem('doctype-public');
+    my $doctype_system = $attribs->getNamedItem('doctype-system');
+    $Self->[DOCTYPE_PUBLIC] = defined $doctype_public ?
+      $doctype_public->getNodeValue : '';
+    $Self->[DOCTYPE_SYSTEM] = defined $doctype_system ?
+      $doctype_system->getNodeValue : '';
   }
 }
 
@@ -1265,11 +1314,11 @@ sub _value_of {
     print " "x$Self->[INDENT],"stripping node to text:$/" if $Self->[DEBUG];
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
-    my $text = "";
+    my $text = undef;
     $text = $Self->__string__ ($$xml_node[0]) if @$xml_node;
     $Self->[INDENT] -= $Self->[INDENT_INCR];
 
-    if ($text) {
+    if (defined $text) {
       $Self->_add_node ($Self->[XML_DOCUMENT]->createTextNode($text), $current_result_node);
     } else {
       $Self->debug("nothing left..");
@@ -2505,3 +2554,15 @@ Bron Gondwana <perlcode@brong.net>,
 L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 =cut
+
+
+Filename: $RCSfile: XSLT.pm,v $
+Revision: $Revision: 1.13 $
+   Label: $Name:  $
+
+Last Chg: $Author: hexmode $ 
+      On: $Date: 2000/07/14 01:26:42 $
+
+  RCS ID: $Id: XSLT.pm,v 1.13 2000/07/14 01:26:42 hexmode Exp $
+    Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
+
