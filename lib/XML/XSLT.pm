@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.26  2004/02/20 09:24:26  gellyfish
+#    * Fixes to variables
+#
 #    Revision 1.25  2004/02/19 08:38:40  gellyfish
 #    * Fixed overlapping attribute-sets
 #    * Allow multiple nodes for processing-instruction() etc
@@ -119,12 +122,26 @@ sub new
     my %args  = $self->__parse_args(@_);
 
     $self->{DEBUG}       = defined $args{debug} ? $args{debug} : "";
-    $self->{PARSER}      = XML::DOM::Parser->new;
+	 no strict 'subs';
+
+	 if ( $self->{DEBUG} )
+    {	
+	    *__PACKAGE__::debug = \&debug;
+	 }
+	 else
+	 {
+		*__PACKAGE__::debug = sub {};
+	 }
+
+	 use strict 'subs';
+
+    $self->{INDENT}      = defined $args{indent}      ? $args{indent}      : 0;
+    $self->{PARSER}      = XML::DOM::Parser->new();
     $self->{PARSER_ARGS} =
       defined $args{DOMparser_args} ? $args{DOMparser_args} : {};
     $self->{VARIABLES}   = defined $args{variables}   ? $args{variables}   : {};
+	 $self->debug(join ' ', keys %{$self->{VARIABLES}});
     $self->{WARNINGS}    = defined $args{warnings}    ? $args{warnings}    : 0;
-    $self->{INDENT}      = defined $args{indent}      ? $args{indent}      : 0;
     $self->{INDENT_INCR} = defined $args{indent_incr} ? $args{indent_incr} : 1;
     $self->{XSL_BASE}    =
       defined $args{base} ? $args{base} : 'file://' . cwd . '/';
@@ -722,40 +739,56 @@ sub __extract_top_level_variables
     my $self = $_[0];
 
     $self->debug("Extracting variables");
-    foreach my $child ( $self->top_xsl_node()->getElementsByTagName( '*', 0 ) )
+    foreach my $child ( $self->xsl_document()->getChildNodes() )
     {
-        my ( $ns, $tag ) = split( ':', $child );
+		  next unless $child->getNodeType() == ELEMENT_NODE;
+		  my $name = $child->getNodeName();
+        my ( $ns, $tag ) = split( ':', $name );
 
-        if ( ( $tag eq '' && $self->xsl_ns() eq '' )
-            || $self->xsl_ns() eq $ns )
+		  $self->debug("$ns $tag");
+        if ( 1 ) 
+					 
+#					 ( $tag eq '' && $self->xsl_ns() eq '' )
+#            || $self->xsl_ns() eq $ns )
         {
             $tag = $ns if $tag eq '';
 
+				$self->debug($tag);
             if ( $tag eq 'variable' || $tag eq 'param' )
             {
 
                 my $name = $child->getAttribute("name");
                 if ($name)
                 {
-                    my $value = $child->getAttribute("select");
-                    if ( !$value )
+						  $self->debug("got $tag called $name");
+                    my $value = $child->getAttributeNode("select");
+                    if ( !defined $value )
                     {
-                        my $result =
-                          $self->xml_document()->createDocumentFragment;
-                        $self->_evaluate_template( $child,
-                            $self->xml_document(), '', $result );
-                        $value = $self->_string($result);
-                        $result->dispose();
+								if ( $child->getChildNodes()->getLength() )
+								{
+                           my $result =
+                              $self->xml_document()->createDocumentFragment;
+                           $self->_evaluate_template( $child,
+                                                      $self->xml_document(), 
+																		'', 
+																		$result );
+                           $value = $self->_string($result);
+                           $result->dispose();
+								}
                     }
                     else
                     {
+							   $value = $value->getValue();
                         if ( $value =~ /'(.*)'/ )
                         {
                             $value = $1;
                         }
                     }
-                    $self->debug("Setting $tag `$name' = `$value'");
-                    $self->{VARIABLES}->{$name} = $value;
+						  unless ( !defined $value ) 
+						  {
+                       $self->debug("Setting $tag `$name' = `$value'");
+                       $self->{VARIABLES}->{$name} = $value;
+						  }
                 }
                 else
                 {
@@ -1142,6 +1175,13 @@ sub open_project
 sub transform
 {
     my $self         = shift;
+
+	 if ( keys %{$self->{VARIABLES}} )
+	 {
+		$self->debug("Adding variables");
+		push @_,'variables', $self->{VARIABLES};
+	 }
+
     my %topvariables = $self->__parse_args(@_);
 
     $self->debug("transforming document:");
@@ -1178,12 +1218,16 @@ sub process
 
     my $root_template = $self->_match_template( "match", '/', 1, '' );
 
+	 $self->debug(join ' ', keys %topvariables);
     %topvariables = (
-        %topvariables,
+        defined $topvariables{variables} ? %{$topvariables{variables}} : (),
         defined $self->{VARIABLES}
           && ref $self->{VARIABLES}
           && ref $self->{VARIABLES} eq 'ARRAY' ? @{ $self->{VARIABLES} } : ()
     );
+
+	 $self->debug(join ' ', keys %topvariables);
+
 
     $self->_evaluate_template(
         $root_template,    # starting template: the root template
@@ -1820,6 +1864,7 @@ sub _apply_templates
         # replacing occurences of variables:
         foreach my $varname ( keys(%$variables) )
         {
+				$self->debug("Applying variable $varname");
             $select =~ s/[^\\]\$$varname/$$variables{$varname}/g;
         }
     }
@@ -2511,6 +2556,7 @@ sub _get_node_set
     $current_node ||= $root_node;
     $silent       ||= 0;
 
+	 %{$variables} = (%{$self->{VARIABLES}}, %{$variables});
     $self->debug(qq{getting node-set "$path" from "$current_path"});
 
     $self->_indent();
@@ -2526,6 +2572,8 @@ sub _get_node_set
     if ( $path =~ /^\$([\w\.\-]+)$/ )
     {
         my $varname = $1;
+		  $self->debug("looking for variable $varname");
+		  $self->debug(join ' ', keys %{$variables});
         my $var     = $$variables{$varname};
         if ( defined $var )
         {
@@ -4034,11 +4082,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.25 $
+Revision: $Revision: 1.26 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/19 08:38:40 $
+      On: $Date: 2004/02/20 09:24:26 $
 
-  RCS ID: $Id: XSLT.pm,v 1.25 2004/02/19 08:38:40 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.26 2004/02/20 09:24:26 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
