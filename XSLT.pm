@@ -154,7 +154,7 @@ sub debug {
   my $Self = shift;
   my $arg = shift || "";
 
-  print STDERR " "x$Self->[INDENT],"$arg$/"
+  print STDERR " "x$Self->[INDENT],"$arg\n"
     if $Self->[DEBUG];
 }
 
@@ -162,9 +162,9 @@ sub warn {
   my $Self = shift;
   my $arg = shift || "";
 
-  print STDERR " "x$Self->[INDENT],"$arg$/"
+  print STDERR " "x$Self->[INDENT],"$arg\n"
     if $Self->[DEBUG];
-  print STDERR "$arg$/"
+  print STDERR "$arg\n"
     if $Self->[WARNINGS] || ! $Self->[DEBUG];
 }
 
@@ -525,7 +525,7 @@ sub __cache_templates {
   # reversing the template order is much more efficient #
   foreach my $template (reverse @{$Self->[TEMPLATE]}) {
     if ($template->getParentNode->getTagName =~
-	/^([\w\.\-]+\:){0,1}(stylesheet|transform|include)/i) {
+	/^([\w\.\-]+\:){0,1}(stylesheet|transform|include)/) {
       my $match = $template->getAttribute ('match');
       my $name = $template->getAttribute ('name');
       if ($match && $name) {
@@ -573,7 +573,7 @@ sub __set_xsl_output {
 	$omit->getNodeValue : 'no';
 
       if ($Self->[OMIT_XML_DECL] ne 'yes' && $Self->[OMIT_XML_DECL] ne 'no') {
-	$Self->warn(qq{Wrong value for attribute "omit-xml-declaration" in$/\t} .
+	$Self->warn(qq{Wrong value for attribute "omit-xml-declaration" in\n\t} .
 		    $Self->[XSL_NS] . qq{output, should be "yes" or "no"});
       }
 
@@ -586,7 +586,7 @@ sub __set_xsl_output {
 	  if defined $output_enc;
 
 	if (not $Self->[OUTPUT_VERSION] || not $Self->[OUTPUT_ENCODING]) {
-	  $Self->warn(qq{Expected attributes "version" and "encoding" in$/\t} .
+	  $Self->warn(qq{Expected attributes "version" and "encoding" in\n\t} .
 	    $Self->[XSL_NS] . "output");
 	}
       }
@@ -788,20 +788,20 @@ sub print_output {
   }
 
   if ($file) {
-    if (ref (\$file) !~ /^SCALAR/i) {
-      print $file $Self->output_string,$/;
+    if (ref (\$file) eq 'SCALAR') {
+      print $file $Self->output_string,"\n"
     } else {
       if (open (FILE, ">$file")) {
-	print FILE $Self->output_string,$/;
+	print FILE $Self->output_string,"\n";
 	if (! close (FILE)) {
-	  die ("Error writing $file: $!. Nothing written...$/");
+	  die ("Error writing $file: $!. Nothing written...\n");
 	}
       } else {
-	die ("Error opening $file: $!. Nothing done...$/");
+	die ("Error opening $file: $!. Nothing done...\n");
       }
     }
   } else {
-    print $Self->output_string,$/;
+    print $Self->output_string,"\n";
   }
 }
 *print_result = *print_output;
@@ -908,7 +908,7 @@ sub _match_template {
       my $full_match = $original_match;
 
       # multipe match? (for example: match="*|/")
-      while ($full_match =~ s/^(.+?)\|//i) {
+      while ($full_match =~ s/^(.+?)\|//) {
 	my $match = $1;
 	if (&__template_matches__ ($match, $select_value, $xml_count,
 				   $xml_selection_path)) {
@@ -947,12 +947,12 @@ sub __template_matches__ {
   my ($template, $select, $count, $path) = @_;
     
   my $nocount_path = $path;
-  $nocount_path =~ s/\[.*?\]//ig;
+  $nocount_path =~ s/\[.*?\]//g;
 
   if (($template eq $select) || ($template eq $path)
       || ($template eq "$select\[$count\]") || ($template eq "$path\[$count\]")) {
     # perfect match or path ends with templates match
-    #print "perfect match",$/;
+    #print "perfect match","\n";
     return "True";
   } elsif ( ($template eq substr ($path, - length ($template)))
 	    || ($template eq substr ($nocount_path, - length ($template)))
@@ -960,28 +960,28 @@ sub __template_matches__ {
 	    || ("$template\[$count\]" eq substr ($nocount_path, - length ($template)))
 	  ) {
     # template matches tail of path matches perfectly
-    #print "perfect tail match",$/;
+    #print "perfect tail match","\n";
     return "True";
-  } elsif ($select =~ /\[\s*(\@.*?)\s*=\s*(.*?)\s*\]$/i) {
+  } elsif ($select =~ /\[\s*(\@.*?)\s*=\s*(.*?)\s*\]$/) {
     # match attribute test
     my $attribute = $1;
     my $value = $2;
     return "";			# False, no test evaluation yet #
-  } elsif ($select =~ /\[\s*(.*?)\s*=\s*(.*?)\s*\]$/i) {
+  } elsif ($select =~ /\[\s*(.*?)\s*=\s*(.*?)\s*\]$/) {
     # match test
     my $element = $1;
     my $value = $2;
     return "";			# False, no test evaluation yet #
-  } elsif ($select =~ /(\@\*|\@[\w\.\-\:]+)$/i) {
+  } elsif ($select =~ /(\@\*|\@[\w\.\-\:]+)$/) {
     # match attribute
     my $attribute = $1;
-    #print "attribute match?",$/;
+    #print "attribute match?\n";
     return (($template eq '@*') || ($template eq $attribute)
 	    || ($template eq "\@*\[$count\]") || ($template eq "$attribute\[$count\]"));
   } elsif ($select =~ /(\*|[\w\.\-\:]+)$/) {
     # match element
     my $element = $1;
-    #print "element match?",$/;
+    #print "element match?\n";
     return (($template eq "*") || ($template eq $element)
 	    || ($template eq "*\[$count\]") || ($template eq "$element\[$count\]"));
   } else {
@@ -1278,7 +1278,7 @@ sub _evaluate_element {
 		    $current_xml_selection_path,
 		    $current_result_node, $variables, $oldvariables);
 
-      #      } elsif ($xsl_tag =~ /^$Self->[XSL_NS]output$/i) {
+      #      } elsif ($xsl_tag eq 'output') {
 
     } elsif ($xsl_tag eq 'param') {
       $Self->_variable ($xsl_node, $current_xml_node,
@@ -1512,7 +1512,7 @@ sub _get_node_set {
     return [$current_node];
   } else {
     # open external documents first #
-    if ($path =~ /^\s*document\s*\(["'](.*?)["']\s*(,\s*(.*)\s*){0,1}\)\s*(.*)$/i) {
+    if ($path =~ /^\s*document\s*\(["'](.*?)["']\s*(,\s*(.*)\s*){0,1}\)\s*(.*)$/) {
       my $filename = $1;
       my $sec_arg = $3;
       $path = ($4 || "");
@@ -1652,9 +1652,9 @@ sub __indexed_element__ {
   $index ||= 0;
   $deep ||= "";			# False #
 
-  if ($index =~ /^first\s*\(\)/i) {
+  if ($index =~ /^first\s*\(\)/) {
     $index = 0;
-  } elsif ($index =~ /^last\s*\(\)/i) {
+  } elsif ($index =~ /^last\s*\(\)/) {
     $index = -1;
   } else {
     $index--;
@@ -1990,7 +1990,7 @@ sub _evaluate_test {
 sub __evaluate_test__ {
   my ($test, $node) = @_;
 
-  #print "testing with \"$test\" and ", ref $node,$/;
+  #print "testing with \"$test\" and ", ref $node,"\n";
   if ($test =~ /^\s*\@([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
     my $attr = $node->getAttribute($1);
     return ($attr ne $2);
@@ -2623,11 +2623,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.16 $
+Revision: $Revision: 1.17 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2000/07/29 19:30:17 $
+      On: $Date: 2000/07/31 02:07:55 $
 
-  RCS ID: $Id: XSLT.pm,v 1.16 2000/07/29 19:30:17 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.17 2000/07/31 02:07:55 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
