@@ -46,4 +46,4 @@ $r = $p->result_string;
 print "not "
   unless $r eq $expected;
 print "ok 1\n";
-warn $r;
+
