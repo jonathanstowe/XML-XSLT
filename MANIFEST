@@ -33,5 +33,5 @@ t/01-simple.t
 Makefile.PL
 README
 XSLT.pm
-changelog.html
+ChangeLog
 xslt-parser
