@@ -34,7 +34,7 @@ use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.32';
+$VERSION = '0.33';
 
 @ISA         = qw( Exporter );
 @EXPORT_OK   = qw( &transform &serve );
@@ -2639,11 +2639,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.6 $
+Revision: $Revision: 1.7 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/04/06 02:26:54 $
+      On: $Date: 2001/04/06 02:29:05 $
 
-  RCS ID: $Id: XSLT.pm,v 1.6 2001/04/06 02:26:54 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.7 2001/04/06 02:29:05 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
