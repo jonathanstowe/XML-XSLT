@@ -642,6 +642,8 @@ sub transform {
   croak "Can't find root template"
     unless defined $root_template;
 
+
+
   %topvariables = (%{$Self->[VARIABLES]}, %topvariables);
   $Self->_evaluate_template ( $root_template,            # starting template: the root template
 			      $Self->[XML_DOCUMENT],     # current XML node: the root
@@ -995,6 +997,8 @@ sub _evaluate_template {
 	       . qq{"$current_xml_selection_path": });
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
+  die "No Template"
+    unless defined $template && ref $template;
   $template->normalize;
   foreach my $child ($template->getChildNodes) {
     my $ref = ref $child;
@@ -1411,18 +1415,18 @@ sub __strip_node_to_text__ {
 }
 
 sub __string__ {
-  my ($Self, $node) = @_;
-    
+  my ($Self, $node,$depth) = @_;
+
   my $result = "";
 
-  if ($node) {
-    my $ref = (ref ($node) || "ARRAY");
-    $Self->debug("stripping child nodes ($ref):");;
+  if (defined $node) {
+    my $ref = (ref ($node) || "not a reference");
+    $Self->debug("stripping child nodes ($ref):");
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
 
-    if ($node eq "ARRAY") {
-      return $Self->__string__ ($$node[0]);
+    if ($ref eq "ARRAY") {
+      return $Self->__string__ ($$node[0], $depth);
     } else {
       my $node_type = $node->getNodeType;
 
@@ -1430,20 +1434,27 @@ sub __string__ {
 	  || ($node_type == DOCUMENT_FRAGMENT_NODE)
 	  || ($node_type == DOCUMENT_NODE)) {
 	foreach my $child ($node->getChildNodes) {
-	  $result .= &__string__ ($Self, $child);
+	  $result .= &__string__ ($Self, $child,1);
 	}
       } elsif ($node_type == ATTRIBUTE_NODE) {
 	$result .= $node->getValue;
       } elsif (($node_type == TEXT_NODE)
+	       || ($node_type == CDATA_SECTION_NODE)
 	       || ($node_type == ENTITY_REFERENCE_NODE)) {
 	$result .= $node->getData;
+      } elsif (!$depth && (  ($node_type == PROCESSING_INSTRUCTION_NODE)
+			     || ($node_type == COMMENT_NODE) )) {
+	$result .= $node->getData; # COM,PI - only in 'top-level' call
+      } else {
+	# just to be consistent
+	$Self->warn("Can't get string-value for node of type $ref !");
       }
     }
 
-    $Self->debug("  \"$result\"");;
+    $Self->debug("  \"$result\"");
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   } else {
-    $Self->debug(" no result");;
+    $Self->debug(" no result");
   }
 
   return $result;
@@ -2612,11 +2623,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.15 $
+Revision: $Revision: 1.16 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2000/07/27 22:15:49 $
+      On: $Date: 2000/07/29 19:30:17 $
 
-  RCS ID: $Id: XSLT.pm,v 1.15 2000/07/27 22:15:49 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.16 2000/07/29 19:30:17 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
