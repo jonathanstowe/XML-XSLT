@@ -1,13 +1,13 @@
-################################################################################
+###############################################################################
 #
 # Perl module: XML::XSLT
 #
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
 #
-# $Id: XSLT.pm,v 1.11 2000/07/13 23:18:07 hexmode Exp $
+# $Id: XSLT.pm,v 1.12 2000/07/14 01:13:10 hexmode Exp $
 #
-################################################################################
+###############################################################################
 
 ######################################################################
 package XML::XSLT;
@@ -39,22 +39,23 @@ use constant XML_DOCUMENT      => 8;
 use constant XSL_DOCUMENT      => 9;
 use constant XML_PASSED_AS_DOM => 10;
 use constant XSL_PASSED_AS_DOM => 11;
-use constant RESULT_DOCUMENT   => 12;
-use constant TOP_XSL_NODE      => 13;
-use constant NAMESPACE         => 14;
-use constant XSL_NS            => 15;
-use constant TEMPLATE          => 16;
-use constant TEMPLATE_MATCH    => 17;
-use constant TEMPLATE_NAME     => 18;
-use constant DOCTYPE_PUBLIC    => 19;
-use constant DOCTYPE_SYSTEM    => 20;
-use constant METHOD            => 21;
-use constant MEDIA_TYPE        => 22;
-use constant OMIT_XML_DECL     => 23;
-use constant OUTPUT_VERSION    => 24;
-use constant OUTPUT_ENCODING   => 25;
-use constant BASENAME          => 26;
-use constant DEFAULT_NS        => 27;
+use constant XSL_BASE          => 12;
+use constant XML_BASE          => 13;
+use constant RESULT_DOCUMENT   => 14;
+use constant TOP_XSL_NODE      => 15;
+use constant NAMESPACE         => 16;
+use constant XSL_NS            => 17;
+use constant TEMPLATE          => 18;
+use constant TEMPLATE_MATCH    => 19;
+use constant TEMPLATE_NAME     => 20;
+use constant DOCTYPE_PUBLIC    => 21;
+use constant DOCTYPE_SYSTEM    => 22;
+use constant METHOD            => 23;
+use constant MEDIA_TYPE        => 24;
+use constant OMIT_XML_DECL     => 25;
+use constant OUTPUT_VERSION    => 26;
+use constant OUTPUT_ENCODING   => 27;
+use constant DEFAULT_NS        => 28;
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
@@ -63,7 +64,7 @@ BEGIN {
   $VERSION = '0.30';
 
   @ISA         = qw( Exporter );
-  @EXPORT_OK   = qw( &transform &Server );
+  @EXPORT_OK   = qw( &transform &serve );
 
   # pretty print HTML tags (<BR /> etc...)
   XML::DOM::setTagCompression (\&__my_tag_compression);
@@ -92,7 +93,9 @@ sub new {
     ? $args{indent}         : 0;
   $Self->[INDENT_INCR]     = defined $args{indent_incr}
     ? $args{indent_incr}    : 1;
-  $Self->[BASENAME]        = defined $args{base}
+  $Self->[XSL_BASE]        = defined $args{base}
+    ? $args{base}    : 'file://' . cwd . '/';
+  $Self->[XML_BASE]        = defined $args{base}
     ? $args{base}    : 'file://' . cwd . '/';
   $Self->[USE_DEPRECATED]  = defined $args{use_deprecated}
     ? $args{use_deprecated} : 0;
@@ -107,6 +110,33 @@ sub new {
 }
 
 sub DESTROY {}			# Cuts out random dies on includes
+
+sub serve {
+  my $Self = shift;
+  my $class = ref $Self || croak "Not a method call";
+  my %args = $Self->__parse_args(@_);
+  my $ret;
+
+  $args{http_headers}    ||= 1;
+  $args{xml_declaration} ||= 1;
+  $args{xml_version}     ||= "1.0";
+  $args{doctype}         ||= "SYSTEM";
+
+  $ret = $Self->transform($args{Source})->toString;
+
+  if($args{xml_declaration}) {
+    $ret = '<?xml version="' . $args{xml_version} . '" encoding="UTF-8"?>'.
+      "\n" . $ret;
+  }
+
+  if($args{http_headers}) {
+    $ret = "Content-Type: " . $Self->media_type . "\n" .
+      "Content-Length: " . length($ret) . "\n\n" . $ret;
+  }
+
+  return $ret;
+}
+
 
 sub debug {
   my $Self = shift;
@@ -146,7 +176,16 @@ sub open_xml {
 
   $Self->debug("opening xml...");
 
-  $Self->[XML_DOCUMENT] = $Self->__open_document (%args);
+  $args{parser_args} ||= {};
+  $Self->[XML_DOCUMENT] = $Self->__open_document (Source => $args{Source},
+						  base   => $Self->[XML_BASE],
+						  parser_args =>
+						  {%{$Self->[PARSER_ARGS]},
+						   %{$args{parser_args}}},
+						 );
+
+  $Self->[XML_BASE] =
+    dirname(URI->new_abs($args{Source}, $Self->[XML_BASE])->as_string) . '/';
 
   $Self->[RESULT_DOCUMENT] = $Self->[XML_DOCUMENT]->createDocumentFragment;
 }
@@ -164,9 +203,16 @@ sub open_xsl {
 
   # open new document  # open new document
   $Self->debug("opening xsl...");
-  $Self->[XSL_DOCUMENT] = $Self->__open_document (%args);
-  $Self->[BASENAME] = 
-    dirname(URI->new_abs($args{Source}, $Self->[BASENAME])->as_string) . '/';
+
+  $args{parser_args} ||= {};
+  $Self->[XSL_DOCUMENT] = $Self->__open_document (Source => $args{Source},
+						  base   => $Self->[XSL_BASE],
+						  parser_args =>
+						  {%{$Self->[PARSER_ARGS]},
+						   %{$args{parser_args}}},
+						 );
+  $Self->[XSL_BASE] =
+    dirname(URI->new_abs($args{Source}, $Self->[XSL_BASE])->as_string) . '/';
 
   $Self->__preprocess_stylesheet;
 }
@@ -314,17 +360,18 @@ sub __expand_xsl_includes {
 
     my $include_doc;
     eval {
-      $include_doc = $Self->[XSL_DOCUMENT]->createDocumentFragment;
-      my $doc =
-	$Self->[PARSER]->parse($Self->__open_by_filename($include_file),
-			       %{$Self->[PARSER_ARGS]});
-      $include_doc->appendChild($doc);
+      my $tmp_doc =
+	$Self->__open_by_filename($include_file, $Self->[XSL_BASE]);
+      $include_doc = $tmp_doc->getFirstChild->cloneNode(1);
+      $tmp_doc->dispose;
     };
     die "parsing of $include_file failed: $@"
       if $@;
 
     $Self->debug("inserting `$include_file'");
+    $include_doc->setOwnerDocument($Self->[XSL_DOCUMENT]);
     $Self->[TOP_XSL_NODE]->replaceChild($include_doc, $include_node);
+    $include_doc->dispose;
   }
 }
 
@@ -532,6 +579,7 @@ sub transform {
 
   $Self->debug("done!");
   $Self->[INDENT] -= $Self->[INDENT_INCR];
+  $Self->[RESULT_DOCUMENT];
 }
 
 sub process {
@@ -686,7 +734,7 @@ sub dispose {
   #my $Self = $_[0];
 
   #$_[0]->[PARSER] = undef if (defined $_[0]->[PARSER]);
-  $_[0]->[RESULT_DOCUMENT]->dispose ()    if (defined $_[0]->[RESULT_DOCUMENT]);
+  $_[0]->[RESULT_DOCUMENT]->dispose if (defined $_[0]->[RESULT_DOCUMENT]);
 
   # only dispose xml and xsl when they were not passed as DOM
   if (not defined $_[0]->[XML_PASSED_AS_DOM] && defined $_-[0]->[XML_DOCUMENT]) {
@@ -719,8 +767,7 @@ sub __open_document {
 	lc(substr($args{Source}, 0, 4)) eq 'ftp:' ||
 	lc(substr($args{Source}, 0, 5)) eq 'file:')) { 
 				# Filename
-      $doc = $Self->[PARSER]->parse($Self->__open_by_filename($args{Source}),
-				    %{$Self->[PARSER_ARGS]});
+      $doc = $Self->__open_by_filename($args{Source}, $args{base});
     } elsif(!ref $args{Source}) {
 				# String
       $doc = $Self->[PARSER]->parse ($args{Source});
@@ -741,7 +788,7 @@ sub __open_document {
 
 # private auxiliary function #
 sub __open_by_filename {
-  my ($Self, $filename) = @_;
+  my ($Self, $filename, $base) = @_;
   my $doc;
 
   # ** FIXME: currently reads the whole document into memory
@@ -749,11 +796,9 @@ sub __open_by_filename {
 
   # LWP should be able to deal with files as well as links
   $ENV{DOMAIN} ||= "example.com"; # hide complaints from Net::Domain
-  $filename = URI->new_abs($filename, $Self->[BASENAME])->as_string;
-  my $result = get($filename);
+  $filename = URI->new_abs($filename, $base)->as_string;
 
-  return $result
-    if defined $result;
+  return $Self->[PARSER]->parsefile($filename, %{$Self->[PARSER_ARGS]});
   die qq{Cannot open document from URL "$filename"$/};
 }
 
@@ -1066,7 +1111,7 @@ sub _select_template {
   my ($Self, $child, $select, $count, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  my $ref = ref $child if $Self->[DEBUG];
+  my $ref = ref $child;
   $Self->debug(qq{selecting template $select for child type $ref of "$current_xml_selection_path":});
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
@@ -1356,8 +1401,7 @@ sub _get_node_set {
 	$Self->warn("Ignoring second argument of $path");
       }
 
-      ($root_node) = $Self->[PARSER]->parse
-	($Self->__open_by_filename ($filename), %{$Self->[PARSER_ARGS]});
+      ($root_node) = $Self->__open_by_filename ($filename, $Self->[XSL_BASE]);
     }
 
     if ($path =~ /^\//) {
@@ -2106,14 +2150,37 @@ Amount to indent each level of debug message.  Defaults to 1.
 =head2 open_xml(Source => $xml [, %args])
 
 Gives the XSLT object new XML to process.  Returns an XML::DOM object
-corresponding to the XML.  Any arguments present are passed to the
-XML::DOM::Parser.
+corresponding to the XML.
 
-=head2 open_xsl(Source => $xml [, %args])
+=over 4
+
+=item base
+
+The base URL to use for opening documents.
+
+=item parser_args
+
+Arguments to pase to the parser.
+
+=back
+
+=head2 open_xsl(Source => $xml, [, %args])
 
 Gives the XSLT object a new stylesheet to use in processing XML.
 Returns an XML::DOM object corresponding to the stylesheet.  Any
 arguments present are passed to the XML::DOM::Parser.
+
+=over 4
+
+=item base
+
+The base URL to use for opening documents.
+
+=item parser_args
+
+Arguments to pase to the parser.
+
+=back
 
 =head2 process(%variables)
 
@@ -2126,28 +2193,28 @@ Processes the given XML through the stylesheet.  Returns an XML::DOM
 object corresponding to the transformed XML.  Any arguments present
 are passed to the XML::DOM::Parser.
 
-=head2 Server(Source => $xml [, %args])
+=head2 serve(Source => $xml [, %args])
 
 Processes the given XML through the stylesheet.  Returns a string
 containg the result.  Example:
 
-  use XML::XSLT qw(Server);
+  use XML::XSLT qw(serve);
 
   $xslt = XML::XSLT->new($xsl);
-  print $xslt->Server $xml;
+  print $xslt->serve $xml;
 
 =over 4
 
 =item http_headers
 
-If true, then prints the appropriate HTTP headers (e.g. Content-Type,
+If true, then prepends the appropriate HTTP headers (e.g. Content-Type,
 Content-Length);
 
 Defaults to true.
 
 =item xml_declaration
 
-If true, then prints the appropriate <?xml?> header.
+If true, then the result contains the appropriate <?xml?> header.
 
 Defaults to true.
 
