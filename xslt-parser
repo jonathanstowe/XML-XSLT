@@ -1,7 +1,8 @@
-#!/usr/local/bin/perl
+#!/usr/local/bin/perl -w
 
-# $Id: xslt-parser,v 1.6 2000/07/13 22:54:17 hexmode Exp $
+# $Id: xslt-parser,v 1.7 2000/07/27 22:16:55 hexmode Exp $
 
+use strict;
 use XML::XSLT;
 use Getopt::Std;
 
@@ -24,6 +25,10 @@ transformation using the XML::XSLT perl module.
 =head1 OPTIONS
 
 =over 4
+
+=item -c
+
+Pass through HTML::Clean.  You must have HTML::Clean installed.
 
 =item -d
 
@@ -60,7 +65,7 @@ my $usage = "Usage: $0 [options] <project>
   -n	     don't print content-type
   -s <file>  use <file> instead of <project>.xsl as template
   -w	     turns warnings on\n";
-getopts('dnws:', \%opt) || die $usage;
+getopts('cdnws:', \%opt) || die $usage;
 
 ## global vars ##
 my $noweb = $opt{n} || 0;
@@ -82,7 +87,7 @@ XML-file: "$xmlfile"
 XSL-file: "$xslfile"
 } if $debug;
 
-print $xslt->serve(Source => $xmlfile,
-		   http_headers => ! $noweb,
-		  );
+print $xslt->serve(Source       => $xmlfile,
+		   clean        => $opt{c},
+		   http_headers => ! $noweb);
 
