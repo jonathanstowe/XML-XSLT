@@ -5,6 +5,9 @@
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
 #
+# Now in Sourceforge,
+# $Id: XSLT.pm,v 1.3 2000/06/06 09:57:50 brong Exp $
+#
 ################################################################################
 
 ######################################################################
@@ -12,7 +15,7 @@ package XML::XSLT;
 ######################################################################
 
 use strict;
-use vars qw ( $VERSION @ISA @EXPORT
+use vars qw ( $VERSION @ISA @EXPORT_OK
               $ELEMENT_NODE $ATTRIBUTE_NODE $TEXT_NODE
 	      $CDATA_SECTION_NODE $ENTITY_REFERENCE_NODE
               $ENTITY_NODE $PROCESSING_INSTRUCTION_NODE
@@ -38,7 +41,7 @@ BEGIN {
 
   @ISA         = qw( Exporter );
   @EXPORT_OK   = qw( &transform_document &result_string
-                     &result_tree &print_result &dispose);
+                     &result_tree &print_result);
 
   # pretty print HTML tags (<BR /> etc...)
   XML::DOM::setTagCompression (\&__my_tag_compression__);
