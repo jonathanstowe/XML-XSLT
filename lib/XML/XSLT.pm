@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.24  2004/02/18 08:34:38  gellyfish
+#    * Fixed select on "comment()" "processing-instruction()" etc
+#    * Added test for select
+#
 #    Revision 1.23  2004/02/17 10:06:12  gellyfish
 #    * Added test for xsl:copy
 #
@@ -1805,7 +1809,7 @@ sub _apply_templates
     if ($select)
     {
         $self->debug(
-qq{applying templates on children $select of "$current_xml_selection_path":}
+qq{applying templates on children select of "$current_xml_selection_path":}
         );
         $children =
           $self->_get_node_set( $select, $self->xml_document(),
@@ -1819,8 +1823,11 @@ qq{applying templates on all children of "$current_xml_selection_path":}
         $children = [ $current_xml_node->getChildNodes ];
     }
 
-    $self->_process_with_params( $xsl_node, $current_xml_node,
-        $current_xml_selection_path, $variables, $params );
+    $self->_process_with_params( $xsl_node, 
+				                     $current_xml_node,
+                                 $current_xml_selection_path, 
+											$variables, 
+											$params );
 
     # process xsl:sort here
 
@@ -2579,8 +2586,9 @@ sub _get_node_set
         }
         else
         {
-            $current_node =
-              &__get_node_set__( $self, $path, [$current_node], $silent );
+            $current_node = $self->__get_node_set__( $path, 
+																	  [$current_node], 
+																	  $silent );
         }
 
         $self->_outdent();
@@ -2608,7 +2616,7 @@ sub __get_node_set__
         my $list = [];
         foreach my $item (@$node)
         {
-            my $sublist = &__try_a_step__( $self, $path, $item, $silent );
+            my $sublist = $self->__try_a_step__( $path, $item, $silent );
             push( @$list, @$sublist );
         }
         return $list;
@@ -2619,7 +2627,10 @@ sub __try_a_step__
 {
     my ( $self, $path, $node, $silent ) = @_;
 
-    study($path);
+	 # study($path);
+
+	 $self->_indent();
+	 $self->debug("Trying $path >");
     if ( $path =~ s/^\/parent\:\:node\(\)// )
     {
 
@@ -2663,14 +2674,6 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
         return &__indexed_element__( $self, $2, $3, $path, $node, $silent );
 
     }
-    elsif ( $path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)// )
-    {
-
-        # /elem #
-        $self->debug(qq{getting element `$2' ("$path")});
-        return &__element__( $self, $2, $path, $node, $silent );
-
-    }
     elsif ( $path =~ s/^\/(child\:\:|)text\(\)// )
     {
 
@@ -2684,8 +2687,10 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /processing-instruction() #
         $self->debug(qq{getting processing instruction ("$path")});
-        return &__get_nodes__( $self, PROCESSING_INSTRUCTION_NODE, $path, $node,
-            $silent );
+        return $self->__get_nodes__(PROCESSING_INSTRUCTION_NODE, 
+					                     $path, 
+												$node,
+                                    $silent );
 
     }
     elsif ( $path =~ s/^\/(child\:\:|)comment\(\)// )
@@ -2694,6 +2699,14 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
         # /comment() #
         $self->debug(qq{getting comment ("$path")});
         return &__get_nodes__( $self, COMMENT_NODE, $path, $node, $silent );
+
+    }
+    elsif ( $path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)// )
+    {
+
+        # /elem #
+        $self->debug(qq{getting element `$2' ("$path")});
+        return &__element__( $self, $2, $path, $node, $silent );
 
     }
     else
@@ -2853,7 +2866,7 @@ sub __get_nodes__
         $self->debug("failed!");
     }
 
-    return $result;
+    return $result->[0];
 }
 
 sub _attribute_value_of
@@ -3994,11 +4007,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.23 $
+Revision: $Revision: 1.24 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/17 10:06:12 $
+      On: $Date: 2004/02/18 08:34:38 $
 
-  RCS ID: $Id: XSLT.pm,v 1.23 2004/02/17 10:06:12 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.24 2004/02/18 08:34:38 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

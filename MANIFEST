@@ -50,6 +50,7 @@ t/output.t
 t/params.t
 t/pattern.t
 t/pi.t
+t/select.t
 t/spec_examples.t
 t/text_nodes.t
 t/variable.t
