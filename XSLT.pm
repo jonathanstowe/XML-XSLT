@@ -6,7 +6,7 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 # Now in Sourceforge,
-# $Id: XSLT.pm,v 1.5 2000/06/14 16:17:00 brong Exp $
+# $Id: XSLT.pm,v 1.6 2000/06/15 05:08:04 brong Exp $
 #
 ################################################################################
 
@@ -79,6 +79,14 @@ BEGIN {
        return 1;
     }
 
+#####################################################################
+# Debugging print handler
+sub print_debug {
+    my $parser = shift;
+    printf "(%0.3f) ", Time::HiRes::tv_interval($parser->{'basetime'}), if $parser->{'basetime'};
+    print @_;
+}
+
 
 ######################################################################
 # PUBLIC DEFINITIONS
@@ -97,6 +105,11 @@ sub new {
     return undef;
   }
 
+  my ($basetime);
+  if ($args{'debug'} && eval('require "Time/HiRes.pm"')) {
+    $basetime = [Time::HiRes::gettimeofday()];
+  }
+
   my $parser = bless { DOMparser => XML::DOM::Parser->new (),
                        DOMparser_args => $args{DOMparser_args},
                        xml => undef, xml_flag => undef, xml_dir => undef,
@@ -108,6 +121,7 @@ sub new {
 		       namespaces => {()},
 	               variables => \%args,
 		       debug => $args{debug},
+		       basetime => $basetime,
 		       warnings => ($args{warnings} && ! $args{debug}),
 	               indent => $args{indent}, indent_incr => $args{indent_incr}
 		     }, $class;
@@ -122,15 +136,15 @@ sub open_xml {
 
   # clean up a little
   if ($parser->{xml_flag} && $parser->{xml_flag} !~ /^DOM/i) {  
-    print " "x$parser->{indent},"disposing old xsl...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"disposing old xsl...$/" if $parser->{debug};
     $parser->{xml}->dispose ()     if (defined $parser->{xml});
   }
   if (defined $parser->{result}) {
-    print " "x$parser->{indent},"flushing result...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"flushing result...$/" if $parser->{debug};
     $parser->{result}->dispose ();
   }
 
-  print " "x$parser->{indent},"opening xml...$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"opening xml...$/" if $parser->{debug};
 
   # open new document
   ($parser->{xml}, $parser->{xml_dir})
@@ -146,11 +160,11 @@ sub open_xsl {
 
   # clean up a little
   if ($parser->{xsl_flag} && $parser->{xsl_flag} !~ /^DOM/i) {
-    print " "x$parser->{indent},"disposing old xsl...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"disposing old xsl...$/" if $parser->{debug};
     $parser->{xsl}->dispose ()     if (defined $parser->{xsl});
   }
 
-  print " "x$parser->{indent},"opening xsl...$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"opening xsl...$/" if $parser->{debug};
 
   # open new document
   ($parser->{xsl}, $parser->{xml_dir})
@@ -164,7 +178,7 @@ sub open_xsl {
     sub __preprocess_stylesheet {
       my $parser = $_[0];
 
-      print " "x$parser->{indent},"preprocessing stylesheet...$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"preprocessing stylesheet...$/" if $parser->{debug};
 
       ($parser->{stylesheet}, $parser->{xsl_ns})
         = $parser->__get_stylesheet ($parser->{xsl});
@@ -230,7 +244,7 @@ sub open_xsl {
 	        $parser->{namespaces} = {%{$parser->{namespaces}}, $namespace => $value};
 	      }
             } else {
-              print " "x$parser->{indent},"attribute $name carries no value$/" if $parser->{debug};
+              print_debug $parser,  " "x$parser->{indent},"attribute $name carries no value$/" if $parser->{debug};
             }
 	  }
 
@@ -254,7 +268,7 @@ sub open_xsl {
 
 	      if ($@) {
 	        chomp ($@);
-                print " "x$parser->{indent},"inclusion of $include_file failed! ($@)$/" if $parser->{debug};
+                print_debug $parser,  " "x$parser->{indent},"inclusion of $include_file failed! ($@)$/" if $parser->{debug};
                 warn "inclusion of $include_file failed! ($@)$/" if $parser->{warnings};
 	      } else {
                 my ($stylesheet, $ns) = $parser->__get_stylesheet ($include_doc);
@@ -267,7 +281,7 @@ sub open_xsl {
 	      }
 
 	    } else {
-              print " "x$parser->{indent},"$parser->{xsl_ns}include tag carries no selection!$/" if $parser->{debug};
+              print_debug $parser,  " "x$parser->{indent},"$parser->{xsl_ns}include tag carries no selection!$/" if $parser->{debug};
               warn "$parser->{xsl_ns}include tag carries no selection!$/" if $parser->{warnings};
 	    }
 	  }
@@ -292,7 +306,7 @@ sub open_xsl {
                 }
                 %{$parser->{variables}} = (%{$parser->{variables}}, $name => $value);
               } else {
-                print " "x$parser->{indent},"$parser->{xsl_ns}$vartag tag carries no name!$/" if $parser->{debug};
+                print_debug $parser,  " "x$parser->{indent},"$parser->{xsl_ns}$vartag tag carries no name!$/" if $parser->{debug};
                 warn "$parser->{xsl_ns}include tag carries no name!$/" if $parser->{warnings};
               }
 
@@ -343,7 +357,7 @@ sub open_xsl {
 	      my $match = $template->getAttribute ('match');
 	      my $name = $template->getAttribute ('name');
               if ($match && $name) {
-                print " "x$parser->{indent},"defining a template with both a \"name\" and a \"match\" attribute is not allowed!$/" if $parser->{debug};
+                print_debug $parser,  " "x$parser->{indent},"defining a template with both a \"name\" and a \"match\" attribute is not allowed!$/" if $parser->{debug};
                 warn "defining a template with both a \"name\" and a \"match\" attribute is not allowed!$/" if $parser->{warnings};
 	        push (@{$parser->{template_matches}}, "");
 	        push (@{$parser->{template_names}}, "");
@@ -365,27 +379,27 @@ sub open_xsl {
 sub open_project {
   my ($parser, $xml, $xsl, $xmlflag, $xslflag, %args) = @_;
 
-  print " "x$parser->{indent},"opening project:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"opening project:$/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
     $parser->open_xml ($xml, $xmlflag, %args);
     $parser->open_xsl ($xsl, $xslflag, %args);
 
-    print " "x$parser->{indent},"done...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"done...$/" if $parser->{debug};
   $parser->{indent} -= $parser->{indent_incr};
 }
 
 sub transform_document {
   my ($parser, $xml, $xmlflag, %topvariables) = @_;
 
-  print " "x$parser->{indent},"opening project:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"opening project:$/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
     $parser->open_xml ($xml, $xmlflag, %topvariables);
 
-    print " "x$parser->{indent},"done...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"done...$/" if $parser->{debug};
   $parser->{indent} -= $parser->{indent_incr};
-  print " "x$parser->{indent},"processing project:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"processing project:$/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
     my $root_template = $parser->_match_template ("match", '/', 1, '');
@@ -401,14 +415,14 @@ sub transform_document {
         \%topvariables          # previously known variables: top level variables
     );
 
-  print " "x$parser->{indent},"done!$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"done!$/" if $parser->{debug};
   $parser->{indent} -= $parser->{indent_incr};
 }
 
 sub process_project {
   my ($parser, %topvariables) = @_;
 
-  print " "x$parser->{indent},"processing project:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"processing project:$/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
     my $root_template = $parser->_match_template ("match", '/', 1, '');
@@ -424,7 +438,7 @@ sub process_project {
         \%topvariables          # previously known variables: top level variables
     );
 
-  print " "x$parser->{indent},"done!$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"done!$/" if $parser->{debug};
   $parser->{indent} -= $parser->{indent_incr};
 }
 
@@ -499,7 +513,7 @@ sub _open_document {
   %args = (%{$parser->{DOMparser_args}}, %args);
   my $doc;
 
-  print " "x$parser->{indent},"opening document of type $object_type...$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"opening document of type $object_type...$/" if $parser->{debug};
 
   # A filename or a filehandle/stream could be passed
   if ($object_type =~ /^FILE/i) {
@@ -583,7 +597,7 @@ sub _match_template {
   my $template = "";
   my @template_matches = ();
 
-  print " "x$parser->{indent},"matching template for \"$select_value\" with count $xml_count and path \"$xml_selection_path\":$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"matching template for \"$select_value\" with count $xml_count and path \"$xml_selection_path\":$/" if $parser->{debug};
   
   if ($attribute_name eq "match") {
     @template_matches = @{$parser->{template_matches}};
@@ -604,7 +618,7 @@ sub _match_template {
         my $match = $1;
         if (&__template_matches__ ($match, $select_value, $xml_count,
                                    $xml_selection_path)) {
-	  print " "x$parser->{indent},"  found #$count with \"$match\" in \"$original_match\" $/" if $parser->{debug};
+	  print_debug $parser,  " "x$parser->{indent},"  found #$count with \"$match\" in \"$original_match\" $/" if $parser->{debug};
 	  $template = ${$parser->{templates}}[$count-1];
   return $template;
 #	  last;
@@ -615,12 +629,12 @@ sub _match_template {
       if (!$template) {
         if (&__template_matches__ ($full_match, $select_value, $xml_count,
                                    $xml_selection_path)) {
-          print " "x$parser->{indent},"  found #$count with \"$full_match\" in \"$original_match\"$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"  found #$count with \"$full_match\" in \"$original_match\"$/" if $parser->{debug};
           $template = ${$parser->{templates}}[$count-1];
   return $template;
 #          last;
         } else {
-          print " "x$parser->{indent},"  #$count \"$original_match\" did not match$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"  #$count \"$original_match\" did not match$/" if $parser->{debug};
         }
       }
     }
@@ -628,7 +642,7 @@ sub _match_template {
   }
 
   if (! $template) {
-    print "no template found! $/" if $parser->{debug};
+    print_debug $parser,  "no template found! $/" if $parser->{debug};
     warn "No template matching $xml_selection_path found !!$/" if $parser->{warnings};
   }
 
@@ -686,14 +700,14 @@ sub _evaluate_template {
   my ($parser, $template, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$parser->{indent},"evaluating template content with current path \"$current_xml_selection_path\": $/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating template content with current path \"$current_xml_selection_path\": $/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
     $template->normalize();
     foreach my $child ($template->getChildNodes) {
       my $ref = ref $child;
 
-      print " "x$parser->{indent},"$ref$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"$ref$/" if $parser->{debug};
       $parser->{indent} += $parser->{indent_incr};
         my $node_type = $child->getNodeType;
         if ($node_type == $ELEMENT_NODE) {
@@ -710,19 +724,19 @@ sub _evaluate_template {
           $parser->_add_node($child, $current_result_node);
         } elsif ($node_type == $DOCUMENT_TYPE_NODE) {
           # skip #
-          print " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
         } elsif ($node_type == $COMMENT_NODE) {
           # skip #
-          print " "x$parser->{indent},"Skipping Comment node...$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Skipping Comment node...$/" if $parser->{debug};
         } else {
-          print " "x$parser->{indent},"Cannot evaluate node of type $ref !$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Cannot evaluate node of type $ref !$/" if $parser->{debug};
           warn ("evaluate-template: Dunno what to do with node of type $ref !!! ($current_xml_selection_path)$/") if $parser->{warnings};
         }
 
       $parser->{indent} -= $parser->{indent_incr};
     }
 
-    print " "x$parser->{indent},"done!$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"done!$/" if $parser->{debug};
   $parser->{indent} -= $parser->{indent_incr};
 }
 
@@ -731,8 +745,8 @@ sub _add_node {
   $deep ||= ""; # False #
   $owner ||= $parser->{xml};
 
-  print " "x$parser->{indent},"adding node (deep)..$/" if $parser->{debug} && $deep;
-  print " "x$parser->{indent},"adding node (non-deep)..$/" if $parser->{debug} && !$deep;
+  print_debug $parser,  " "x$parser->{indent},"adding node (deep)..$/" if $parser->{debug} && $deep;
+  print_debug $parser,  " "x$parser->{indent},"adding node (non-deep)..$/" if $parser->{debug} && !$deep;
 
   $node = $node->cloneNode($deep);
   $node->setOwnerDocument($owner);
@@ -755,12 +769,12 @@ sub _apply_templates {
   }
   
   if ($select) {
-    print " "x$parser->{indent},"applying templates on children $select of \"$current_xml_selection_path\":$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"applying templates on children $select of \"$current_xml_selection_path\":$/" if $parser->{debug};
     $children = $parser->_get_node_set ($select, $parser->{xml},
                                         $current_xml_selection_path,
     					$current_xml_node, $variables);
   } else {
-    print " "x$parser->{indent},"applying templates on all children of \"$current_xml_selection_path\":$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"applying templates on all children of \"$current_xml_selection_path\":$/" if $parser->{debug};
     my @children = $current_xml_node->getChildNodes;
     $children = \@children;
   }
@@ -779,13 +793,13 @@ sub _apply_templates {
     
       if ($node_type == $DOCUMENT_TYPE_NODE) {
         # skip #
-        print " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
       } elsif ($node_type == $DOCUMENT_FRAGMENT_NODE) {
         # skip #
-        print " "x$parser->{indent},"Skipping Document Fragment node...$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"Skipping Document Fragment node...$/" if $parser->{debug};
       } elsif ($node_type == $NOTATION_NODE) {
         # skip #
-        print " "x$parser->{indent},"Skipping Notation node...$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"Skipping Notation node...$/" if $parser->{debug};
       } else {
 
 	my $newselect = "";
@@ -805,7 +819,7 @@ sub _apply_templates {
             $newselect = "comment()";
           } else {
             my $ref = ref $child;
-            print " "x$parser->{indent},"Unknown node encountered: $ref$/" if $parser->{debug};
+            print_debug $parser,  " "x$parser->{indent},"Unknown node encountered: $ref$/" if $parser->{debug};
           }
 	} else {
           $newselect = $select;
@@ -839,7 +853,7 @@ sub _for_each {
   }
   
   if ($select) {
-    print " "x$parser->{indent},"applying template for each child $select of \"$current_xml_selection_path\":$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"applying template for each child $select of \"$current_xml_selection_path\":$/" if $parser->{debug};
     my $children = $parser->_get_node_set ($select, $parser->{xml},
                                            $current_xml_selection_path,
     					   $current_xml_node, $variables);
@@ -850,13 +864,13 @@ sub _for_each {
 
         if ($node_type == $DOCUMENT_TYPE_NODE) {
           # skip #
-          print " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Skipping Document Type node...$/" if $parser->{debug};
         } elsif ($node_type == $DOCUMENT_FRAGMENT_NODE) {
           # skip #
-          print " "x$parser->{indent},"Skipping Document Fragment node...$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Skipping Document Fragment node...$/" if $parser->{debug};
         } elsif ($node_type == $NOTATION_NODE) {
           # skip #
-          print " "x$parser->{indent},"Skipping Notation node...$/" if $parser->{debug};
+          print_debug $parser,  " "x$parser->{indent},"Skipping Notation node...$/" if $parser->{debug};
         } else {
 
           $parser->_evaluate_template ($xsl_node, $child,
@@ -868,7 +882,7 @@ sub _for_each {
 
     $parser->{indent} -= $parser->{indent_incr};
   } else {
-    print " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}for-each>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}for-each>$/" if $parser->{debug};
     warn "expected attribute \"select\" in <$parser->{xsl_ns}for-each>$/" if $parser->{warnings};
   }
 
@@ -879,7 +893,7 @@ sub _select_template {
       $current_result_node, $variables, $oldvariables) = @_;
 
   my $ref = ref $child if $parser->{debug};
-  print " "x$parser->{indent},"selecting template $select for child type $ref of \"$current_xml_selection_path\":$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"selecting template $select for child type $ref of \"$current_xml_selection_path\":$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
@@ -894,7 +908,7 @@ sub _select_template {
                                      "$child_xml_selection_path\[$count\]",
                                      $current_result_node, $variables, $oldvariables);
     } else {
-      print " "x$parser->{indent},"skipping template selection...$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"skipping template selection...$/" if $parser->{debug};
     }
 
   $parser->{indent} -= $parser->{indent_incr};
@@ -905,7 +919,7 @@ sub _evaluate_element {
       $current_result_node, $variables, $oldvariables) = @_;
 
   my $xsl_tag = $xsl_node->getTagName;
-  print " "x$parser->{indent},"evaluating element $xsl_tag from \"$current_xml_selection_path\": $/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating element $xsl_tag from \"$current_xml_selection_path\": $/" if $parser->{debug};
   $parser->{indent} += $parser->{indent_incr};
 
   # could use qr in newer perl versions
@@ -1031,7 +1045,7 @@ sub _value_of {
                                         $current_xml_selection_path,
                                         $current_xml_node, $variables);
 
-    print " "x$parser->{indent},"stripping node to text:$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"stripping node to text:$/" if $parser->{debug};
 
     $parser->{indent} += $parser->{indent_incr};
       my $text = undef;
@@ -1041,10 +1055,10 @@ sub _value_of {
     if (defined($text)) {
       $parser->_add_node ($parser->{xml}->createTextNode($text), $current_result_node);
     } else {
-      print " "x$parser->{indent},"nothing left..$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"nothing left..$/" if $parser->{debug};
     }
   } else {
-    print " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}value-of>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}value-of>$/" if $parser->{debug};
     warn "expected attribute \"select\" in <$parser->{xsl_ns}value-of>$/" if $parser->{warnings};
   }
 }
@@ -1074,7 +1088,7 @@ sub _value_of {
 
     if ($node) {
       my $ref = (ref ($node) || "ARRAY") if $parser->{debug};
-      print " "x$parser->{indent},"stripping child nodes ($ref):$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"stripping child nodes ($ref):$/" if $parser->{debug};
 
       $parser->{indent} += $parser->{indent_incr};
 
@@ -1098,10 +1112,10 @@ sub _value_of {
           }
         }
 
-        print " "x$parser->{indent},"  \"$result\"$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"  \"$result\"$/" if $parser->{debug};
       $parser->{indent} -= $parser->{indent_incr};
     } else {
-      print " "x$parser->{indent}," no result$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent}," no result$/" if $parser->{debug};
     }
  
     return $result;
@@ -1110,7 +1124,7 @@ sub _value_of {
 sub _move_node {
   my ($parser, $node, $parent) = @_;
 
-  print " "x$parser->{indent},"moving node..$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"moving node..$/" if $parser->{debug};
 
   $parent->appendChild($node);
 }
@@ -1122,7 +1136,7 @@ sub _get_node_set {
   $current_node ||= $root_node;
   $silent ||= 0;
   
-  print " "x$parser->{indent},"getting node-set \"$path\" from \"$current_path\":$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"getting node-set \"$path\" from \"$current_path\":$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
@@ -1148,7 +1162,7 @@ sub _get_node_set {
         return [];
       }
     } elsif ($path eq $current_path || $path eq ".") {
-      print " "x$parser->{indent},"direct hit!$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"direct hit!$/" if $parser->{debug};
       return [$current_node];
     } else {
       # open external documents first #
@@ -1157,10 +1171,10 @@ sub _get_node_set {
         my $sec_arg = $3;
         $path = ($4 || "");
 
-        print " "x$parser->{indent},"external selection (\"$filename\")!$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"external selection (\"$filename\")!$/" if $parser->{debug};
 
         if ($sec_arg) {
-	  print " "x$parser->{indent}," Ignoring second argument of $path$/" if $parser->{debug};
+	  print_debug $parser,  " "x$parser->{indent}," Ignoring second argument of $path$/" if $parser->{debug};
 	  warn "Ignoring second argument of $path$/" if $parser->{warnings} && !$silent;
         }
 
@@ -1178,7 +1192,7 @@ sub _get_node_set {
         $path = "/$path";
       }
 
-      print " "x$parser->{indent},"using \"$path\": $/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"using \"$path\": $/" if $parser->{debug};
 
       $current_node = &__get_node_set__ ($parser, $path, [$current_node], $silent);
 
@@ -1197,7 +1211,7 @@ sub _get_node_set {
 
     if ($path eq "" || $path eq "/") {
 
-      print " "x$parser->{indent},"node found!$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"node found!$/" if $parser->{debug};
       return $node;
 
     } else {
@@ -1216,52 +1230,52 @@ sub _get_node_set {
       study ($path);
       if ($path =~ s/^\/\.\.\///) {
         # /.. #
-        print " "x$parser->{indent},"getting parent (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting parent (\"$path\")$/" if $parser->{debug};
         return &__parent__ ($parser, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/(\*|[\w\.\:\-]+)\[(\S+?)\]//) {
         # /elem[n] #
-        print " "x$parser->{indent},"getting indexed element $1 $2 (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting indexed element $1 $2 (\"$path\")$/" if $parser->{debug};
         return &__indexed_element__ ($parser, $1, $2, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/(\*|[\w\.\:\-]+)//) {
         # /elem #
-        print " "x$parser->{indent},"getting element $1 (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting element $1 (\"$path\")$/" if $parser->{debug};
         return &__element__ ($parser, $1, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/\/(\*|[\w\.\:\-]+)\[(\S+?)\]//) {
         # //elem[n] #
-        print " "x$parser->{indent},"getting deep indexed element $1 $2 (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting deep indexed element $1 $2 (\"$path\")$/" if $parser->{debug};
         return &__indexed_element__ ($parser, $1, $2, $path, $node, $silent, "deep");
 
       } elsif ($path =~ s/^\/\/(\*|[\w\.\:\-]+)//) {
         # //elem #
-        print " "x$parser->{indent},"getting deep element $1 (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting deep element $1 (\"$path\")$/" if $parser->{debug};
         return &__element__ ($parser, $1, $path, $node, $silent, "deep");
 
       } elsif ($path =~ s/^\/\@(\*|[\w\.\:\-]+)//) {
         # /@attr #
-        print " "x$parser->{indent},"getting attribute $1 (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting attribute $1 (\"$path\")$/" if $parser->{debug};
         return &__attribute__ ($parser, $1, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/text\(\)//) {
         # /text() #
-        print " "x$parser->{indent},"getting text (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting text (\"$path\")$/" if $parser->{debug};
         die;
         return &__get_text_nodes__ ($parser, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/processing-instruction\(\)//) {
         # /processing-instruction() #
-        print " "x$parser->{indent},"getting processing instruction (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting processing instruction (\"$path\")$/" if $parser->{debug};
         return &__get_nodes__ ($parser, $PROCESSING_INSTRUCTION_NODE, $path, $node, $silent);
 
       } elsif ($path =~ s/^\/comment\(\)//) {
         # /comment() #
-        print " "x$parser->{indent},"getting comment (\"$path\")$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"getting comment (\"$path\")$/" if $parser->{debug};
         return &__get_nodes__ ($parser, $COMMENT_NODE, $path, $node, $silent);
 
       } else {
-        print " "x$parser->{indent},"dunno what to do with path $path !!!$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"dunno what to do with path $path !!!$/" if $parser->{debug};
         warn ("get-node-from-path: Dunno what to do with path $path !!!$/") if $parser->{warnings} && !$silent;
         return [];
       }
@@ -1273,7 +1287,7 @@ sub _get_node_set {
         $parser->{indent} += $parser->{indent_incr};
           if (($node->getNodeType == $DOCUMENT_NODE)
             || ($node->getNodeType == $DOCUMENT_FRAGMENT_NODE)) {
-            print " "x$parser->{indent},"no parent!$/" if $parser->{debug};
+            print_debug $parser,  " "x$parser->{indent},"no parent!$/" if $parser->{debug};
 	    $node = [];
           } else {
             $node = $node->getParentNode;
@@ -1310,7 +1324,7 @@ sub _get_node_set {
           if ($node) {
             $node = &__get_node_set__ ($parser, $path, [$node], $silent);
           } else {
-            print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+            print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
 	    $node = [];
           }
         $parser->{indent} -= $parser->{indent_incr};
@@ -1328,7 +1342,7 @@ sub _get_node_set {
           if (@$node) {
             $node = &__get_node_set__($parser, $path, $node, $silent);
           } else {
-            print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+            print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
           }
         $parser->{indent} -= $parser->{indent_incr};
 
@@ -1345,7 +1359,7 @@ sub _get_node_set {
             if ($node) {
               $node = &__get_node_set__ ($parser, $path, $node, $silent);
             } else {
-              print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+              print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
             }
           $parser->{indent} -= $parser->{indent_incr};
         } else {
@@ -1355,7 +1369,7 @@ sub _get_node_set {
             if ($node) {
               $node = &__get_node_set__ ($parser, $path, [$node], $silent);
             } else {
-              print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+              print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
               $node = [];
             }
           $parser->{indent} -= $parser->{indent_incr};
@@ -1378,7 +1392,7 @@ sub _get_node_set {
         $parser->{indent} -= $parser->{indent_incr};
 	
 	if (! @$result) {
-	  print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+	  print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
         }
         
 	return $result;
@@ -1399,7 +1413,7 @@ sub _get_node_set {
         $parser->{indent} -= $parser->{indent_incr};
 	
 	if (! @$result) {
-	  print " "x$parser->{indent},"failed!$/" if $parser->{debug};
+	  print_debug $parser,  " "x$parser->{indent},"failed!$/" if $parser->{debug};
         }
         
 	return $result;
@@ -1442,8 +1456,8 @@ sub _processing_instruction {
   my $new_PI_name = $xsl_node->getAttribute('name');
 
   if ($new_PI_name eq "xml") {
-    print " "x$parser->{indent},"<$parser->{xsl_ns}processing-instruction> may not be used to create XML$/" if $parser->{debug};
-    print " "x$parser->{indent},"declaration. Use <$parser->{xsl_ns}output> instead...$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"<$parser->{xsl_ns}processing-instruction> may not be used to create XML$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"declaration. Use <$parser->{xsl_ns}output> instead...$/" if $parser->{debug};
     warn "<$parser->{xsl_ns}processing-instruction> may not be used to create XML$/" if $parser->{warnings};
     warn "declaration. Use <$parser->{xsl_ns}output> instead...$/" if $parser->{warnings};
   } elsif ($new_PI_name) {
@@ -1454,7 +1468,7 @@ sub _processing_instruction {
       $parser->_move_node ($new_PI, $current_result_node);
     }
   } else {
-    print " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}processing-instruction> !$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}processing-instruction> !$/" if $parser->{debug};
     warn "Expected attribute \"name\" in <$parser->{xsl_ns}processing-instruction> !$/" if $parser->{warnings};
   }
 }
@@ -1492,7 +1506,7 @@ sub _process_with_params {
         $$variables{$varname} = $value;
       }
     } else {
-      print " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}with-param> !$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}with-param> !$/" if $parser->{debug};
       warn "Expected attribute \"name\" in <$parser->{xsl_ns}with-param> !$/" if $parser->{warnings};
     }
 
@@ -1509,7 +1523,7 @@ sub _call_template {
   my $name = $xsl_node->getAttribute('name');
   
   if ($name) {
-    print " "x$parser->{indent},"calling template named \"$name\"$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"calling template named \"$name\"$/" if $parser->{debug};
 
     $parser->_process_with_params ($xsl_node, $current_xml_node,
       				   $current_xml_selection_path,
@@ -1523,12 +1537,12 @@ sub _call_template {
       				   $current_xml_selection_path,
                                    $current_result_node, $variables, $oldvariables);
     } else {
-      print " "x$parser->{indent},"no template found!$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"no template found!$/" if $parser->{debug};
       warn "no template named $name found!$/" if $parser->{warnings};
     }
     $parser->{indent} -= $parser->{indent_incr};
   } else {
-    print " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}call-template/>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}call-template/>$/" if $parser->{debug};
     warn "Expected attribute \"name\" in <$parser->{xsl_ns}call-template/>$/" if $parser->{warnings};
   }
 }
@@ -1537,7 +1551,7 @@ sub _choose {
   my ($parser, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$parser->{indent},"evaluating choose:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating choose:$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
@@ -1559,7 +1573,7 @@ sub _choose {
           $notdone = "";
         }
       } else {
-        print " "x$parser->{indent},"expected attribute \"test\" in <$parser->{xsl_ns}when>$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"expected attribute \"test\" in <$parser->{xsl_ns}when>$/" if $parser->{debug};
         warn "expected attribute \"test\" in <$parser->{xsl_ns}when>$/" if $parser->{warnings};
       }
     } elsif ($notdone && ($child->getTagName eq "$parser->{xsl_ns}otherwise")) {
@@ -1571,7 +1585,7 @@ sub _choose {
   }
   
   if ($notdone) {
-  print " "x$parser->{indent},"nothing done!$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"nothing done!$/" if $parser->{debug};
   }
 
   $parser->{indent} -= $parser->{indent_incr};
@@ -1581,7 +1595,7 @@ sub _if {
   my ($parser, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$parser->{indent},"evaluating if:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating if:$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
@@ -1597,7 +1611,7 @@ sub _if {
                                      $current_result_node, $variables, $oldvariables);
       }
     } else {
-      print " "x$parser->{indent},"expected attribute \"test\" in <$parser->{xsl_ns}if>$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"expected attribute \"test\" in <$parser->{xsl_ns}if>$/" if $parser->{debug};
       warn "expected attribute \"test\" in <$parser->{xsl_ns}if>$/" if $parser->{warnings};
     }
 
@@ -1612,7 +1626,7 @@ sub _evaluate_test {
     my $path = $1;
     $test = $2;
     
-    print " "x$parser->{indent},"evaluating test $test at path $path:$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"evaluating test $test at path $path:$/" if $parser->{debug};
 
     $parser->{indent} += $parser->{indent_incr};
       my $node = $parser->_get_node_set ($path, $parser->{xml},
@@ -1625,16 +1639,16 @@ sub _evaluate_test {
       }
     $parser->{indent} -= $parser->{indent_incr};
   } else {
-    print " "x$parser->{indent},"evaluating path or test $test:$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"evaluating path or test $test:$/" if $parser->{debug};
     my $node = $parser->_get_node_set ($test, $parser->{xml},
                                        $current_xml_selection_path,
                                        $current_xml_node, $variables, "silent");
     $parser->{indent} += $parser->{indent_incr};
       if (@$node) {
-        print " "x$parser->{indent},"path exists!$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"path exists!$/" if $parser->{debug};
         return "true";
       } else {
-        print " "x$parser->{indent},"not a valid path, evaluating as test$/" if $parser->{debug};
+        print_debug $parser,  " "x$parser->{indent},"not a valid path, evaluating as test$/" if $parser->{debug};
       }
     $parser->{indent} -= $parser->{indent_incr};
   }
@@ -1642,9 +1656,9 @@ sub _evaluate_test {
   $parser->{indent} += $parser->{indent_incr};
     my $result = &__evaluate_test__ ($test, $current_xml_node);
     if ($result) {
-      print " "x$parser->{indent},"test evaluates true..$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"test evaluates true..$/" if $parser->{debug};
     } else {
-      print " "x$parser->{indent},"test evaluates false..$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"test evaluates false..$/" if $parser->{debug};
     }
   $parser->{indent} -= $parser->{indent_incr};
   return $result;
@@ -1679,7 +1693,7 @@ sub _copy_of {
 
   my $nodelist;
   my $select = $xsl_node->getAttribute('select');
-  print " "x$parser->{indent},"evaluating copy-of with select \"$select\":$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating copy-of with select \"$select\":$/" if $parser->{debug};
   
   $parser->{indent} += $parser->{indent_incr};
   if ($select) {
@@ -1687,7 +1701,7 @@ sub _copy_of {
                                         $current_xml_selection_path,
     			  		$current_xml_node, $variables);
   } else {
-    print " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}copy-of>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"select\" in <$parser->{xsl_ns}copy-of>$/" if $parser->{debug};
     warn "expected attribute \"select\" in <$parser->{xsl_ns}copy-of>$/" if $parser->{warnings};
   }
   foreach my $node (@$nodelist) {
@@ -1702,7 +1716,7 @@ sub _copy {
       $current_result_node, $variables, $oldvariables) = @_;
 
 
-  print " "x$parser->{indent},"evaluating copy:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"evaluating copy:$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
     if ($current_xml_node->getNodeType == $ATTRIBUTE_NODE) {
@@ -1731,11 +1745,11 @@ sub _text {
   #Return Value: the last child if it was a Text node or else the new Text node.
   my ($parser, $xsl_node, $current_result_node) = @_;
 
-  print " "x$parser->{indent},"inserting text:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"inserting text:$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
-    print " "x$parser->{indent},"stripping node to text:$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"stripping node to text:$/" if $parser->{debug};
 
     $parser->{indent} += $parser->{indent_incr};
       my $text = $parser->__string__ ($xsl_node);
@@ -1744,7 +1758,7 @@ sub _text {
     if ($text) {
       $parser->_move_node ($parser->{xml}->createTextNode ($text), $current_result_node);
     } else {
-      print " "x$parser->{indent},"nothing left..$/" if $parser->{debug};
+      print_debug $parser,  " "x$parser->{indent},"nothing left..$/" if $parser->{debug};
     }
 
   $parser->{indent} -= $parser->{indent_incr};
@@ -1755,7 +1769,7 @@ sub _attribute {
       $current_result_node, $variables, $oldvariables) = @_;
   
   my $name = $xsl_node->getAttribute ('name');
-  print " "x$parser->{indent},"inserting attribute named \"$name\":$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"inserting attribute named \"$name\":$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
   if ($name) {
@@ -1773,7 +1787,7 @@ sub _attribute {
     $current_result_node->setAttribute($name, $text);
     $result->dispose();
   } else {
-    print " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}attribute>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}attribute>$/" if $parser->{debug};
     warn "expected attribute \"name\" in <$parser->{xsl_ns}attribute>$/" if $parser->{warnings};
   }
   $parser->{indent} -= $parser->{indent_incr};
@@ -1783,7 +1797,7 @@ sub _comment {
   my ($parser, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
   
-  print " "x$parser->{indent},"inserting comment:$/" if $parser->{debug};
+  print_debug $parser,  " "x$parser->{indent},"inserting comment:$/" if $parser->{debug};
 
   $parser->{indent} += $parser->{indent_incr};
 
@@ -1811,7 +1825,7 @@ sub _variable {
   my $varname = $xsl_node->getAttribute ('name');
   
   if ($varname) {
-    print " "x$parser->{indent},"definition of variable \$$varname:$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"definition of variable \$$varname:$/" if $parser->{debug};
 
     $parser->{indent} += $parser->{indent_incr};
 
@@ -1841,7 +1855,7 @@ sub _variable {
 
     $parser->{indent} -= $parser->{indent_incr};
   } else {
-    print " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}param> or <$parser->{xsl_ns}variable>$/" if $parser->{debug};
+    print_debug $parser,  " "x$parser->{indent},"expected attribute \"name\" in <$parser->{xsl_ns}param> or <$parser->{xsl_ns}variable>$/" if $parser->{debug};
     warn "expected attribute \"name\" in <$parser->{xsl_ns}param> or <$parser->{xsl_ns}variable>$/" if $parser->{warnings};
   }
 }
