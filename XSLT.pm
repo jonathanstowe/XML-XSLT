@@ -386,6 +386,8 @@ sub __get_stylesheet {
 sub __extract_namespaces {
   my ($Self) = @_;
 
+  $Self->[DEFAULT_NS]="";
+
   foreach my $attribute ($Self->[TOP_XSL_NODE]->getAttributes->getValues) {
     my ($pre, $post) = split(":", $attribute->getName, 2);
     my $value = $attribute->getValue;
@@ -415,11 +417,11 @@ sub __extract_namespaces {
       $Self->debug("Version for namespace `$post:' = `$value'");
     }
   }
-  if(not defined $Self->[DEFAULT_NS]) {
-    ($Self->[DEFAULT_NS]) = split(':', $Self->[TOP_XSL_NODE]->getTagName);
+  if(not defined $Self->[XSL_NS]) {
+    my ($pre,$post) = split(':', $Self->[TOP_XSL_NODE]->getTagName);
+    $Self->[XSL_NS]=defined($post) ? $pre.":" : "";
   }
   $Self->debug("Default Namespace: `" . $Self->[DEFAULT_NS] . "'");
-  $Self->[XSL_NS] ||= $Self->[DEFAULT_NS];
 
   $Self->debug("XSL Namespace: `" .$Self->[XSL_NS] ."'");
   # ** FIXME: is this right?
@@ -1635,7 +1637,7 @@ sub __try_a_step__ {
     return &__get_nodes__ ($Self, COMMENT_NODE, $path, $node, $silent);
 
   } else {
-    $Self->warn("get-node-from-path: Don't know what to do with path $path !!!");
+#    $Self->warn("get-node-from-path: Don't know what to do with path $path !!!");
     return [];
   }
 }
@@ -1988,7 +1990,7 @@ sub _evaluate_test {
   }
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
-  my $result = &__evaluate_test__ ($test, $current_xml_node);
+  my $result = &__evaluate_test__ ($Self,$test, $current_xml_selection_path,$current_xml_node,$variables);
   if ($result) {
     $Self->debug("test evaluates true..");;
   } else {
@@ -1999,7 +2001,7 @@ sub _evaluate_test {
 }
 
 sub __evaluate_test__ {
-  my ($test, $node) = @_;
+  my ($Self,$test, $path,$node,$variables) = @_;
 
   #print "testing with \"$test\" and ", ref $node,"\n";
   if ($test =~ /^\s*\@([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
@@ -2009,13 +2011,17 @@ sub __evaluate_test__ {
     my $attr = $node->getAttribute($1);
     return ($attr eq $2);
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
-    $node->normalize;
-    my $content = $node->getFirstChild->getValue;
-    return ($content !~ /$2/m);
+    my $expval=$2;
+    my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
+    return 1 unless @$nodeset;
+    my $content = &__string__($Self,$$nodeset[0]);
+    return ($content ne $expval);
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*=\s*['"](.*)['"]\s*$/) {
-    $node->normalize;
-    my $content = $node->getFirstChild->getValue;
-    return ($content =~ /^\s*$2\s*/m);
+    my $expval=$2;
+    my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
+    return 0 unless @$nodeset;
+    my $content = &__string__($Self,$$nodeset[0]);
+    return ($content eq $expval);
   } else {
     return "";
   }
@@ -2636,11 +2642,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.19 $
+Revision: $Revision: 1.20 $
    Label: $Name:  $
 
 Last Chg: $Author: nejedly $ 
-      On: $Date: 2000/09/20 17:58:17 $
+      On: $Date: 2000/09/23 09:45:23 $
 
-  RCS ID: $Id: XSLT.pm,v 1.19 2000/09/20 17:58:17 nejedly Exp $
+  RCS ID: $Id: XSLT.pm,v 1.20 2000/09/23 09:45:23 nejedly Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
