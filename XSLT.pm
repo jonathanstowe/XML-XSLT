@@ -118,12 +118,23 @@ sub serve {
   my %args = $Self->__parse_args(@_);
   my $ret;
 
-  $args{http_headers}    ||= 1;
-  $args{xml_declaration} ||= 1;
-  $args{xml_version}     ||= "1.0";
-  $args{doctype}         ||= "SYSTEM";
+  $args{http_headers}    = 1 unless defined $args{http_headers};
+  $args{xml_declaration} = 1 unless defined $args{xml_declaration};
+  $args{xml_version}     = "1.0" unless defined $args{xml_version};
+  $args{doctype}         = "SYSTEM" unless defined $args{doctype};
+  $args{clean}           = 0 unless defined $args{clean};
 
   $ret = $Self->transform($args{Source})->toString;
+
+  if($args{clean}) {
+    eval {require HTML::Clean};
+
+    unless($@) {
+      my $hold = HTML::Clean->new(\$ret);
+      $hold->strip;
+      $ret = ${$hold->data};
+    }
+  }
 
   if($args{xml_declaration}) {
     $ret = '<?xml version="' . $args{xml_version} . '" encoding="UTF-8"?>'.
@@ -204,7 +215,6 @@ sub open_xsl {
   # open new document  # open new document
   $Self->debug("opening xsl...");
 
-$Self->debug("Base: " . $Self->[XML_BASE]);
   $args{parser_args} ||= {};
   $Self->[XSL_DOCUMENT] = $Self->__open_document (Source => $args{Source},
 						  base   => $Self->[XSL_BASE],
@@ -306,8 +316,9 @@ sub __preprocess_stylesheet {
 
   $Self->[TOP_XSL_NODE] = $Self->[XSL_DOCUMENT]->getFirstChild;
   $Self->__extract_namespaces;
-#  $Self->__get_stylesheet;
+  $Self->__get_stylesheet;
 
+  $Self->[TOP_XSL_NODE] = $Self->[XSL_DOCUMENT]->getFirstChild;
   $Self->__expand_xsl_includes;
   $Self->__extract_top_level_variables;
 
@@ -319,55 +330,56 @@ sub __preprocess_stylesheet {
 }
 
 # private auxiliary function #
-#  sub __get_stylesheet {
-#    my ($Self, $xsl) = @_;
-#    my $stylesheet;
+sub __get_stylesheet {
+  my $Self = shift;
+  my $stylesheet;
+  my $xsl_ns = $Self->[XSL_NS];
+  my $xsl = $Self->[XSL_DOCUMENT];
 
-#    foreach my $child ($xsl->getElementsByTagName ('*', 0)) {
-#      my $tag = $child->getTagName;
-#      if (substr($tag, -10) eq 'stylesheet' ||
-#  	substr($tag, -8) eq 'transform') {
-#        $stylesheet = $child;
-#        $xsl_ns = substr($tag, 0, index($tag, ":"));
-#        last;
-#      }
-#    }
+  foreach my $child ($xsl->getElementsByTagName ('*', 0)) {
+    my ($ns, $tag) = split(':', $child->getTagName);
+    if(not defined $tag) {
+      $tag = $ns;
+      $ns  = $Self->[DEFAULT_NS];
+    }
+    if ($tag eq 'stylesheet' ||
+	$tag eq 'transform') {
+      $stylesheet = $child;
+      last;
+    }
+  }
 
-#    if (! $stylesheet) {
-#      # stylesheet is actually one complete template!
-#      # put it in a template-element
+  if (! $stylesheet) {
+    # stylesheet is actually one complete template!
+    # put it in a template-element
 
-#      $stylesheet = $xsl->createElement ("$xsl_ns:stylesheet");
-#      my $template = $xsl->createElement ("$xsl_ns:template");
-#      $template->setAttribute ('match', "/");
+    $stylesheet = $xsl->createElement ("$ {xsl_ns}stylesheet");
+    my $template = $xsl->createElement ("$ {xsl_ns}template");
+    $template->setAttribute ('match', "/");
 
-#      my $template_content = $xsl->getElementsByTagName ('*', 0)->item (0);
-#      $xsl->replaceChild ($stylesheet, $template_content);
-#      $stylesheet->appendChild ($template);
-#      $template->appendChild ($template_content);
-#    }
+    my $template_content = $xsl->getElementsByTagName ('*', 0)->item (0);
+    $xsl->replaceChild ($stylesheet, $template_content);
+    $stylesheet->appendChild ($template);
+    $template->appendChild ($template_content);
+  }
 
-#    $Self->[XSL_DOCUMENT] = $stylesheet;
-#  }
+  $Self->[XSL_DOCUMENT] = $stylesheet;
+}
 
 # private auxiliary function #
 sub __extract_namespaces {
   my ($Self) = @_;
-
-  ($Self->[DEFAULT_NS], my $dump) =
-    split(':', $Self->[TOP_XSL_NODE]->getTagName);
-  $Self->[DEFAULT_NS] = '' if not defined $dump;
-  $Self->[DEFAULT_NS] &&=   $Self->[DEFAULT_NS] . ':';
-  $Self->debug("Default Namespace: `" . $Self->[DEFAULT_NS] . "'");
 
   foreach my $attribute ($Self->[TOP_XSL_NODE]->getAttributes->getValues) {
     my ($pre, $post) = split(":", $attribute->getName, 2);
     my $value = $attribute->getValue;
 
     # Take care of namespaces
-    if($pre eq 'xmlns' and not defined $post) {
+    if($pre eq 'xmlns' and not defined $post) {  
+      $Self->[DEFAULT_NS] = '';
+
       $Self->[NAMESPACE]->{$Self->[DEFAULT_NS]}->{namespace} = $value;
-      $Self->[XSL_NS] = $Self->[DEFAULT_NS]
+      $Self->[XSL_NS] = ''
 	if $value eq NS_XSLT;
       $Self->debug("Namespace `" . $Self->[DEFAULT_NS] . "' = `$value'");
     } elsif($pre eq 'xmlns') {
@@ -387,7 +399,13 @@ sub __extract_namespaces {
       $Self->debug("Version for namespace `$post:' = `$value'");
     }
   }
+  if(not defined $Self->[DEFAULT_NS]) {
+    ($Self->[DEFAULT_NS]) = split(':', $Self->[TOP_XSL_NODE]->getTagName);
+  }
+  $Self->debug("Default Namespace: `" . $Self->[DEFAULT_NS] . "'");
+  $Self->[XSL_NS] ||= $Self->[DEFAULT_NS];
 
+  $Self->debug("XSL Namespace: `" .$Self->[XSL_NS] ."'");
   # ** FIXME: is this right?
   $Self->[NAMESPACE]->{$Self->[DEFAULT_NS]}->{namespace} ||= NS_XHTML;
 }
@@ -539,9 +557,9 @@ sub __set_xsl_output {
 
   # extraction of top-level xsl:output tag
   my ($output) = 
-    $Self->[XSL_DOCUMENT]->getElementsByTagName("$Self->[XSL_NS]output",0);
+    $Self->[XSL_DOCUMENT]->getElementsByTagName($Self->[XSL_NS] . "output",0);
 
-  if ($output) {
+  if (defined $output) {
     # extraction and processing of the attributes
     my $attribs = $output->getAttributes;
     my $media  = $attribs->getNamedItem('media-type');
@@ -579,6 +597,8 @@ sub __set_xsl_output {
       $doctype_public->getNodeValue : '';
     $Self->[DOCTYPE_SYSTEM] = defined $doctype_system ?
       $doctype_system->getNodeValue : '';
+  } else {
+    $Self->debug("Default Output options being used");
   }
 }
 
@@ -618,18 +638,17 @@ sub transform {
   $Self->debug("processing project:");
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  my $root_template = $Self->_match_template ("match", '/', 1, '');
+  my $root_template = $Self->_match_template("match", '/', 1, '');
+  croak "Can't find root template"
+    unless defined $root_template;
 
   %topvariables = (%{$Self->[VARIABLES]}, %topvariables);
-
-  $Self->_evaluate_template (
-			       $root_template, # starting template: the root template
-			       $Self->[XML_DOCUMENT], # current XML node: the root
-			       '', # current XML selection path: the root
-			       $Self->[RESULT_DOCUMENT], # current result tree node: the root
-			       {
-				()}, # current known variables: none
-			       \%topvariables # previously known variables: top level variables
+  $Self->_evaluate_template ( $root_template,            # starting template: the root template
+			      $Self->[XML_DOCUMENT],     # current XML node: the root
+			      '',                        # current XML selection path: the root
+			      $Self->[RESULT_DOCUMENT],  # current result tree node: the root
+			      {()},                      # current known variables: none
+			      \%topvariables             # previously known variables: top level variables
 			      );
 
   $Self->debug("done!");
@@ -640,7 +659,7 @@ sub transform {
 sub process {
   my ($Self, %topvariables) = @_;
 
-  print " "x$Self->[INDENT],"processing project:$/" if $Self->[DEBUG];
+  $Self->debug("processing project:");
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
   my $root_template = $Self->_match_template ("match", '/', 1, '');
@@ -657,7 +676,7 @@ sub process {
 			       \%topvariables # previously known variables: top level variables
 			      );
 
-  print " "x$Self->[INDENT],"done!$/" if $Self->[DEBUG];
+  $Self->debug("done!");
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 }
 
@@ -869,13 +888,13 @@ sub _match_template {
   my $template = "";
   my @template_matches = ();
 
-  $Self->debug(qq{matching template for "$select_value" with count $xml_count$/\t} .
+  $Self->debug(qq{matching template for "$select_value" with count $xml_count\n\t} .
     qq{and path "$xml_selection_path":});
 
-  if ($attribute_name eq "match") {
-    @template_matches = @{$Self->[TEMPLATE_MATCH]};
-  } elsif ($attribute_name eq "name") {
-    @template_matches = @{$Self->[TEMPLATE_NAME]};
+  if ($attribute_name eq "match" && ref $Self->[TEMPLATE_MATCH]) {
+    push @template_matches, @{$Self->[TEMPLATE_MATCH]};
+  } elsif ($attribute_name eq "name" && ref $Self->[TEMPLATE_NAME]) {
+    push @template_matches, @{$Self->[TEMPLATE_NAME]};
   }
 
   # note that the order of @template_matches is the reverse of $Self->[TEMPLATE]
@@ -891,7 +910,7 @@ sub _match_template {
 	my $match = $1;
 	if (&__template_matches__ ($match, $select_value, $xml_count,
 				   $xml_selection_path)) {
-	  print " "x$Self->[INDENT],"  found #$count with \"$match\" in \"$original_match\" $/" if $Self->[DEBUG];
+	  $Self->debug(qq{  found #$count with "$match" in "$original_match"});
 	  $template = ${$Self->[TEMPLATE]}[$count-1];
 	  return $template;
 	  #	  last;
@@ -902,12 +921,12 @@ sub _match_template {
       if (!$template) {
 	if (&__template_matches__ ($full_match, $select_value, $xml_count,
 				   $xml_selection_path)) {
-	  print " "x$Self->[INDENT],"  found #$count with \"$full_match\" in \"$original_match\"$/" if $Self->[DEBUG];
+	  $Self->debug(qq{  found #$count with "$full_match" in "$original_match"});
 	  $template = ${$Self->[TEMPLATE]}[$count-1];
 	  return $template;
 	  #          last;
 	} else {
-	  print " "x$Self->[INDENT],"  #$count \"$original_match\" did not match$/" if $Self->[DEBUG];
+	  $Self->debug(qq{  #$count "$original_match" did not match});
 	}
       }
     }
@@ -915,7 +934,7 @@ sub _match_template {
   }
 
   if (! $template) {
-    $Self->warn("No template matching $xml_selection_path found !!");
+    $Self->warn(qq{No template matching `$xml_selection_path' found !!});
   }
 
   return $template;
@@ -980,7 +999,7 @@ sub _evaluate_template {
   foreach my $child ($template->getChildNodes) {
     my $ref = ref $child;
 
-    print " "x$Self->[INDENT],"$ref$/" if $Self->[DEBUG];
+    $Self->debug("$ref");
     $Self->[INDENT] += $Self->[INDENT_INCR];
     my $node_type = $child->getNodeType;
     if ($node_type == ELEMENT_NODE) {
@@ -1019,11 +1038,10 @@ sub _evaluate_template {
 
 sub _add_node {
   my ($Self, $node, $parent, $deep, $owner) = @_;
-  $deep ||= "";			# False #
   $owner ||= $Self->[XML_DOCUMENT];
 
-  print " "x$Self->[INDENT],"adding node (deep)..$/" if $Self->[DEBUG] && $deep;
-  print " "x$Self->[INDENT],"adding node (non-deep)..$/" if $Self->[DEBUG] && !$deep;
+  $Self->debug("adding node (deep)..") if defined $deep;
+  $Self->debug("adding node (non-deep)..") unless defined $deep;
 
   $node = $node->cloneNode($deep);
   $node->setOwnerDocument($owner);
@@ -1074,13 +1092,13 @@ sub _apply_templates {
     
     if ($node_type == DOCUMENT_TYPE_NODE) {
       # skip #
-      print " "x$Self->[INDENT],"Skipping Document Type node...$/" if $Self->[DEBUG];
+      $Self->debug("Skipping Document Type node...");
     } elsif ($node_type == DOCUMENT_FRAGMENT_NODE) {
       # skip #
-      print " "x$Self->[INDENT],"Skipping Document Fragment node...$/" if $Self->[DEBUG];
+      $Self->debug("Skipping Document Fragment node...");
     } elsif ($node_type == NOTATION_NODE) {
       # skip #
-      print " "x$Self->[INDENT],"Skipping Notation node...$/" if $Self->[DEBUG];
+      $Self->debug("Skipping Notation node...");
     } else {
 
       my $newselect = "";
@@ -1098,7 +1116,7 @@ sub _apply_templates {
 	  $newselect = "comment()";
 	} else {
 	  my $ref = ref $child;
-	  print " "x$Self->[INDENT],"Unknown node encountered: $ref$/" if $Self->[DEBUG];
+	  $Self->debug("Unknown node encountered: `$ref'");
 	}
       } else {
 	$newselect = $select;
@@ -1122,17 +1140,17 @@ sub _for_each {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  my $select = $xsl_node->getAttribute ('select');
-  
+  my $select = $xsl_node->getAttribute ('select') || die "No `select' attribute in for-each element";
+
   if ($select =~ /\$/) {
     # replacing occurences of variables:
     foreach my $varname (keys (%$variables)) {
       $select =~ s/[^\\]\$$varname/$$variables{$varname}/g;
     }
   }
-  
-  if ($select) {
-    print " "x$Self->[INDENT],"applying template for each child $select of \"$current_xml_selection_path\":$/" if $Self->[DEBUG];
+
+  if (defined $select) {
+    $Self->debug("applying template for each child $select of \"$current_xml_selection_path\":");
     my $children = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					   $current_xml_selection_path,
 					   $current_xml_node, $variables);
@@ -1143,17 +1161,17 @@ sub _for_each {
 
       if ($node_type == DOCUMENT_TYPE_NODE) {
 	# skip #
-	print " "x$Self->[INDENT],"Skipping Document Type node...$/" if $Self->[DEBUG];
+	$Self->debug("Skipping Document Type node...");;
       } elsif ($node_type == DOCUMENT_FRAGMENT_NODE) {
 	# skip #
-	print " "x$Self->[INDENT],"Skipping Document Fragment node...$/" if $Self->[DEBUG];
+	$Self->debug("Skipping Document Fragment node...");;
       } elsif ($node_type == NOTATION_NODE) {
 	# skip #
-	print " "x$Self->[INDENT],"Skipping Notation node...$/" if $Self->[DEBUG];
+	$Self->debug("Skipping Notation node...");;
       } else {
 
 	$Self->_evaluate_template ($xsl_node, $child,
-				     "$current_xml_selection_path/$select\[$count\]",
+				   "$current_xml_selection_path/$select\[$count\]",
 				     $current_result_node, $variables, $oldvariables);
       }
       $count++;
@@ -1186,7 +1204,7 @@ sub _select_template {
 				 "$child_xml_selection_path\[$count\]",
 				 $current_result_node, $variables, $oldvariables);
   } else {
-    print " "x$Self->[INDENT],"skipping template selection...$/" if $Self->[DEBUG];
+    $Self->debug("skipping template selection...");;
   }
 
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1196,75 +1214,85 @@ sub _evaluate_element {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  my $xsl_tag = $xsl_node->getTagName;
-  print " "x$Self->[INDENT],"evaluating element $xsl_tag from \"$current_xml_selection_path\": $/" if $Self->[DEBUG];
+  my ($ns, $xsl_tag) = split(':', $xsl_node->getTagName);
+  if(not defined $xsl_tag) {
+    $xsl_tag = $ns;
+    $ns = $Self->[DEFAULT_NS];
+  } else {
+    $ns .= ':';
+  }
+  $Self->debug(qq{evaluating element `$xsl_tag' from `$current_xml_selection_path': });
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  if ($xsl_tag =~ /^$Self->[XSL_NS]/i) {
-    if ($xsl_tag =~ /^$Self->[XSL_NS]apply-templates$/i) {
+  if ($ns eq $Self->[XSL_NS]) {
+    $Self->debug(qq{This is an xsl tag});
+    if ($xsl_tag eq 'apply-templates') {
       $Self->_apply_templates ($xsl_node, $current_xml_node,
 				 $current_xml_selection_path,
 				 $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]attribute$/i) {
+    } elsif ($xsl_tag eq 'attribute') {
       $Self->_attribute ($xsl_node, $current_xml_node,
 			   $current_xml_selection_path,
 			   $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]call-template$/i) {
+    } elsif ($xsl_tag eq 'call-template') {
       $Self->_call_template ($xsl_node, $current_xml_node,
 			       $current_xml_selection_path,
 			       $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]choose$/i) {
+    } elsif ($xsl_tag eq 'choose') {
       $Self->_choose ($xsl_node, $current_xml_node,
 			$current_xml_selection_path,
 			$current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]comment$/i) {
+    } elsif ($xsl_tag eq 'comment') {
       $Self->_comment ($xsl_node, $current_xml_node,
 			 $current_xml_selection_path,
 			 $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]copy$/i) {
+    } elsif ($xsl_tag eq 'copy') {
       $Self->_copy ($xsl_node, $current_xml_node,
 		      $current_xml_selection_path,
 		      $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]copy-of$/i) {
+    } elsif ($xsl_tag eq 'copy-of') {
       $Self->_copy_of ($xsl_node, $current_xml_node,
 			 $current_xml_selection_path,
 			 $current_result_node, $variables);
-
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]for-each$/i) {
+    } elsif ($xsl_tag eq 'element') {
+      $Self->_element ($xsl_node, $current_xml_node,
+			 $current_xml_selection_path,
+			 $current_result_node, $variables, $oldvariables);
+    } elsif ($xsl_tag eq 'for-each') {
       $Self->_for_each ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
 			  $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]if$/i) {
+    } elsif ($xsl_tag eq 'if') {
       $Self->_if ($xsl_node, $current_xml_node,
 		    $current_xml_selection_path,
 		    $current_result_node, $variables, $oldvariables);
 
       #      } elsif ($xsl_tag =~ /^$Self->[XSL_NS]output$/i) {
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]param$/i) {
+    } elsif ($xsl_tag eq 'param') {
       $Self->_variable ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
 			  $current_result_node, $variables, $oldvariables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]processing-instruction$/i) {
+    } elsif ($xsl_tag eq 'processing-instruction') {
       $Self->_processing_instruction ($xsl_node, $current_result_node);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]text$/i) {
+    } elsif ($xsl_tag eq 'text') {
       $Self->_text ($xsl_node, $current_result_node);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]value-of$/i) {
+    } elsif ($xsl_tag eq 'value-of') {
       $Self->_value_of ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
 			  $current_result_node, $variables);
 
-    } elsif ($xsl_tag =~ /^$Self->[XSL_NS]variable$/i) {
+    } elsif ($xsl_tag eq 'variable') {
       $Self->_variable ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
 			  $current_result_node, $variables, $oldvariables);
@@ -1275,7 +1303,7 @@ sub _evaluate_element {
 				 $current_result_node, $variables, $oldvariables);
     }
   } else {
-
+    $Self->debug($ns ." does not match ". $Self->[XSL_NS]);
     $Self->_check_attributes_and_recurse ($xsl_node, $current_xml_node,
 					    $current_xml_selection_path,
 					    $current_result_node, $variables, $oldvariables);
@@ -1289,7 +1317,7 @@ sub _add_and_recurse {
       $current_result_node, $variables, $oldvariables) = @_;
 
   # the addition is commented out to prevent unknown xsl: commands to be printed in the result
-  #$Self->_add_node ($xsl_node, $current_result_node);
+  $Self->_add_node ($xsl_node, $current_result_node);
   $Self->_evaluate_template ($xsl_node, $current_xml_node,
 			       $current_xml_selection_path,
 			       $current_result_node, $variables, $oldvariables); #->getLastChild);
@@ -1308,6 +1336,31 @@ sub _check_attributes_and_recurse {
 			       $current_result_node->getLastChild, $variables, $oldvariables);
 }
 
+sub _element {
+  my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $current_result_node, $variables, $oldvariables) = @_;
+  
+  my $name = $xsl_node->getAttribute ('name');
+  $Self->debug("inserting Element named \"$name\":");
+  $Self->[INDENT] += $Self->[INDENT_INCR];
+
+  if (defined $name) {
+    my $result = $Self->[XML_DOCUMENT]->createElement($name);
+
+    $Self->_evaluate_template ($xsl_node,
+				 $current_xml_node,
+				 $current_xml_selection_path,
+				 $result, $variables, $oldvariables);
+
+
+    $current_result_node->appendChild($result);
+  } else {
+    $Self->warn(q{expected attribute "name" in <} .
+		$Self->[XSL_NS] . q{element>});
+  }
+  $Self->[INDENT] -= $Self->[INDENT_INCR];
+}
+
 sub _value_of {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables) = @_;
@@ -1315,13 +1368,12 @@ sub _value_of {
   my $select = $xsl_node->getAttribute('select');
   my $xml_node;
 
-  if ($select) {
-  
+  if (defined $select) {
     $xml_node = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
 
-    print " "x$Self->[INDENT],"stripping node to text:$/" if $Self->[DEBUG];
+    $Self->debug("stripping node to text:");
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
     my $text = undef;
@@ -1364,8 +1416,8 @@ sub __string__ {
   my $result = "";
 
   if ($node) {
-    my $ref = (ref ($node) || "ARRAY") if $Self->[DEBUG];
-    print " "x$Self->[INDENT],"stripping child nodes ($ref):$/" if $Self->[DEBUG];
+    my $ref = (ref ($node) || "ARRAY");
+    $Self->debug("stripping child nodes ($ref):");;
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
 
@@ -1388,19 +1440,19 @@ sub __string__ {
       }
     }
 
-    print " "x$Self->[INDENT],"  \"$result\"$/" if $Self->[DEBUG];
+    $Self->debug("  \"$result\"");;
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   } else {
-    print " "x$Self->[INDENT]," no result$/" if $Self->[DEBUG];
+    $Self->debug(" no result");;
   }
- 
+
   return $result;
 }
 
 sub _move_node {
   my ($Self, $node, $parent) = @_;
 
-  print " "x$Self->[INDENT],"moving node..$/" if $Self->[DEBUG];
+  $Self->debug("moving node..");;
 
   $parent->appendChild($node);
 }
@@ -1411,8 +1463,8 @@ sub _get_node_set {
   $current_path ||= "/";
   $current_node ||= $root_node;
   $silent ||= 0;
-  
-  print " "x$Self->[INDENT],"getting node-set \"$path\" from \"$current_path\":$/" if $Self->[DEBUG];
+
+  $Self->debug(qq{getting node-set "$path" from "$current_path"});
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
@@ -1422,7 +1474,7 @@ sub _get_node_set {
   $path =~ s/\./self\:\:node\(\)/g;
   $path =~ s/\/\//\/descendant\-or\-self\:\:node\(\)\//g;
   #$path =~ s/\/[^\:\/]*?\//attribute::/g;
-    
+
   if ($path =~ /^\$([\w\.\-]+)$/) {
     my $varname = $1;
     my $var = $$variables{$varname};
@@ -1445,7 +1497,7 @@ sub _get_node_set {
       return [];
     }
   } elsif ($path eq $current_path || $path eq 'self::node()') {
-    print " "x$Self->[INDENT],"direct hit!$/" if $Self->[DEBUG];
+    $Self->debug("direct hit!");;
     return [$current_node];
   } else {
     # open external documents first #
@@ -1475,7 +1527,7 @@ sub _get_node_set {
       $path = "/$path";
     }
 
-    print " "x$Self->[INDENT],"using \"$path\": $/" if $Self->[DEBUG];
+    $Self->debug(qq{using "$path":});
 
     if ($path eq '/') {
       $current_node = [$current_node];
@@ -1498,7 +1550,7 @@ sub __get_node_set__ {
 
   if ($path eq "") {
 
-    print " "x$Self->[INDENT],"node found!$/" if $Self->[DEBUG];
+    $Self->debug("node found!");;
     return $node;
 
   } else {
@@ -1517,42 +1569,42 @@ sub __try_a_step__ {
   study ($path);
   if ($path =~ s/^\/parent\:\:node\(\)//) {
     # /.. #
-    print " "x$Self->[INDENT],"getting parent (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting parent ("$path")});
     return &__parent__ ($Self, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/attribute\:\:(\*|[\w\.\:\-]+)//) {
     # /@attr #
-    print " "x$Self->[INDENT],"getting attribute $1 (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting attribute `$1' ("$path")});
     return &__attribute__ ($Self, $1, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//) {
     # //elem[n] #
-    print " "x$Self->[INDENT],"getting deep indexed element $1 $2 (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting deep indexed element `$1' `$2' ("$path")});
     return &__indexed_element__ ($Self, $1, $2, $path, $node, $silent, "deep");
 
   } elsif ($path =~ s/^\/descendant\-or\-self\:\:node\(\)\/(\*|[\w\.\:\-]+)//) {
     # //elem #
-    print " "x$Self->[INDENT],"getting deep element $1 (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting deep element `$1' ("$path")});
     return &__element__ ($Self, $1, $path, $node, $silent, "deep");
 
   } elsif ($path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//) {
     # /elem[n] #
-    print " "x$Self->[INDENT],"getting indexed element $2 $3 (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting indexed element `$2' `$3' ("$path")});
     return &__indexed_element__ ($Self, $2, $3, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)//) {
     # /elem #
-    print " "x$Self->[INDENT],"getting element $2 (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting element `$2' ("$path")});
     return &__element__ ($Self, $2, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/(child\:\:|)text\(\)//) {
     # /text() #
-    print " "x$Self->[INDENT],"getting text (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting text ("$path")});
     return &__get_nodes__ ($Self, TEXT_NODE, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/(child\:\:|)processing-instruction\(\)//) {
     # /processing-instruction() #
-    print " "x$Self->[INDENT],"getting processing instruction (\"$path\")$/" if $Self->[DEBUG];
+    $Self->debug(qq{getting processing instruction ("$path")});
     return &__get_nodes__ ($Self, PROCESSING_INSTRUCTION_NODE, $path, $node, $silent);
 
   } elsif ($path =~ s/^\/(child\:\:|)comment\(\)//) {
@@ -1572,7 +1624,7 @@ sub __parent__ {
   $Self->[INDENT] += $Self->[INDENT_INCR];
   if (($node->getNodeType == DOCUMENT_NODE)
       || ($node->getNodeType == DOCUMENT_FRAGMENT_NODE)) {
-    print " "x$Self->[INDENT],"no parent!$/" if $Self->[DEBUG];
+    $Self->debug("no parent!");;
     $node = [];
   } else {
     $node = $node->getParentNode;
@@ -1609,7 +1661,7 @@ sub __indexed_element__ {
   if ($node) {
     $node = &__get_node_set__ ($Self, $path, [$node], $silent);
   } else {
-    print " "x$Self->[INDENT],"failed!$/" if $Self->[DEBUG];
+    $Self->debug("failed!");;
     $node = [];
   }
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1627,7 +1679,7 @@ sub __element__ {
   if (@$node) {
     $node = &__get_node_set__($Self, $path, $node, $silent);
   } else {
-    print " "x$Self->[INDENT],"failed!$/" if $Self->[DEBUG];
+    $Self->debug("failed!");;
   }
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 
@@ -1639,22 +1691,22 @@ sub __attribute__ {
 
   if ($attribute eq '*') {
     $node = [$node->getAttributes->getValues];
-        
+
     $Self->[INDENT] += $Self->[INDENT_INCR];
     if ($node) {
       $node = &__get_node_set__ ($Self, $path, $node, $silent);
     } else {
-      print " "x$Self->[INDENT],"failed!$/" if $Self->[DEBUG];
+      $Self->debug("failed!");;
     }
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   } else {
     $node = $node->getAttributeNode($attribute);
-        
+
     $Self->[INDENT] += $Self->[INDENT_INCR];
     if ($node) {
       $node = &__get_node_set__ ($Self, $path, [$node], $silent);
     } else {
-      print " "x$Self->[INDENT],"failed!$/" if $Self->[DEBUG];
+      $Self->debug("failed!");;
       $node = [];
     }
     $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1677,7 +1729,7 @@ sub __get_nodes__ {
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 	
   if (! @$result) {
-    print " "x$Self->[INDENT],"failed!$/" if $Self->[DEBUG];
+    $Self->debug("failed!");;
   }
         
   return $result;
@@ -1784,7 +1836,7 @@ sub _call_template {
   my $name = $xsl_node->getAttribute('name');
   
   if ($name) {
-    print " "x$Self->[INDENT],"calling template named \"$name\"$/" if $Self->[DEBUG];
+    $Self->debug("calling template named \"$name\"");;
 
     $Self->_process_with_params ($xsl_node, $current_xml_node,
 				   $current_xml_selection_path,
@@ -1811,14 +1863,14 @@ sub _choose {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$Self->[INDENT],"evaluating choose:$/" if $Self->[DEBUG];
+  $Self->debug("evaluating choose:");;
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
   my $notdone = "true";
   my $testwhen = "active";
   foreach my $child ($xsl_node->getElementsByTagName ('*', 0)) {
-    if ($notdone && $testwhen && ($child->getTagName eq "$Self->[XSL_NS]when")) {
+    if ($notdone && $testwhen && ($child->getTagName eq $Self->[XSL_NS] ."when")) {
       my $test = $child->getAttribute ('test');
 
       if ($test) {
@@ -1836,7 +1888,7 @@ sub _choose {
 	$Self->warn(q{expected attribute "test" in <} .
 		    $Self->[XSL_NS] . q{when>});
       }
-    } elsif ($notdone && ($child->getTagName eq "$Self->[XSL_NS]otherwise")) {
+    } elsif ($notdone && ($child->getTagName eq $Self->[XSL_NS] . "otherwise")) {
       $Self->_evaluate_template ($child, $current_xml_node,
 				   $current_xml_selection_path,
 				   $current_result_node, $variables, $oldvariables);
@@ -1845,7 +1897,7 @@ sub _choose {
   }
   
   if ($notdone) {
-    print " "x$Self->[INDENT],"nothing done!$/" if $Self->[DEBUG];
+    $Self->debug("nothing done!");;
   }
 
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1855,7 +1907,7 @@ sub _if {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$Self->[INDENT],"evaluating if:$/" if $Self->[DEBUG];
+  $Self->debug("evaluating if:");;
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
@@ -1886,7 +1938,7 @@ sub _evaluate_test {
     my $path = $1;
     $test = $2;
     
-    print " "x$Self->[INDENT],"evaluating test $test at path $path:$/" if $Self->[DEBUG];
+    $Self->debug("evaluating test $test at path $path:");;
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
     my $node = $Self->_get_node_set ($path, $Self->[XML_DOCUMENT],
@@ -1899,16 +1951,16 @@ sub _evaluate_test {
     }
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   } else {
-    print " "x$Self->[INDENT],"evaluating path or test $test:$/" if $Self->[DEBUG];
+    $Self->debug("evaluating path or test $test:");;
     my $node = $Self->_get_node_set ($test, $Self->[XML_DOCUMENT],
 				       $current_xml_selection_path,
 				       $current_xml_node, $variables, "silent");
     $Self->[INDENT] += $Self->[INDENT_INCR];
     if (@$node) {
-      print " "x$Self->[INDENT],"path exists!$/" if $Self->[DEBUG];
+      $Self->debug("path exists!");;
       return "true";
     } else {
-      print " "x$Self->[INDENT],"not a valid path, evaluating as test$/" if $Self->[DEBUG];
+      $Self->debug("not a valid path, evaluating as test");;
     }
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   }
@@ -1916,9 +1968,9 @@ sub _evaluate_test {
   $Self->[INDENT] += $Self->[INDENT_INCR];
   my $result = &__evaluate_test__ ($test, $current_xml_node);
   if ($result) {
-    print " "x$Self->[INDENT],"test evaluates true..$/" if $Self->[DEBUG];
+    $Self->debug("test evaluates true..");;
   } else {
-    print " "x$Self->[INDENT],"test evaluates false..$/" if $Self->[DEBUG];
+    $Self->debug("test evaluates false..");;
   }
   $Self->[INDENT] -= $Self->[INDENT_INCR];
   return $result;
@@ -1953,7 +2005,7 @@ sub _copy_of {
 
   my $nodelist;
   my $select = $xsl_node->getAttribute('select');
-  print " "x$Self->[INDENT],"evaluating copy-of with select \"$select\":$/" if $Self->[DEBUG];
+  $Self->debug("evaluating copy-of with select \"$select\":");;
   
   $Self->[INDENT] += $Self->[INDENT_INCR];
   if ($select) {
@@ -1976,7 +2028,7 @@ sub _copy {
       $current_result_node, $variables, $oldvariables) = @_;
 
 
-  print " "x$Self->[INDENT],"evaluating copy:$/" if $Self->[DEBUG];
+  $Self->debug("evaluating copy:");;
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
   if ($current_xml_node->getNodeType == ATTRIBUTE_NODE) {
@@ -2029,9 +2081,9 @@ sub _attribute {
       $current_result_node, $variables, $oldvariables) = @_;
   
   my $name = $xsl_node->getAttribute ('name');
-  print " "x$Self->[INDENT],"inserting attribute named \"$name\":$/" if $Self->[DEBUG];
-
+  $Self->debug("inserting attribute named \"$name\":");
   $Self->[INDENT] += $Self->[INDENT_INCR];
+
   if ($name) {
     my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
@@ -2085,7 +2137,7 @@ sub _variable {
   my $varname = $xsl_node->getAttribute ('name');
   
   if ($varname) {
-    print " "x$Self->[INDENT],"definition of variable \$$varname:$/" if $Self->[DEBUG];
+    $Self->debug("definition of variable \$$varname:");;
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
 
@@ -2359,9 +2411,7 @@ xsl:value-of
 
 Not supported yet.
 
-=head2 xsl:element			no
-
-Not supported yet.
+=head2 xsl:element			yes
 
 =head2 xsl:fallback			no
 
@@ -2562,11 +2612,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.14 $
+Revision: $Revision: 1.15 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2000/07/27 07:17:54 $
+      On: $Date: 2000/07/27 22:15:49 $
 
-  RCS ID: $Id: XSLT.pm,v 1.14 2000/07/27 07:17:54 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.15 2000/07/27 22:15:49 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
