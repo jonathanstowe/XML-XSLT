@@ -151,7 +151,7 @@ sub warn {
   print STDERR " "x$self->{INDENT},"$arg\n"
     if $self->{DEBUG};
   print STDERR "$arg\n"
-    if $self->{WARNINGS} || ! $self->{DEBUG};
+    if $self->{WARNINGS} && ! $self->{DEBUG};
 }
 
 sub open_xml {
@@ -975,6 +975,52 @@ sub __template_matches__ {
   }
 }
 
+sub _evaluate_test {
+  my ($self, $test, $current_xml_node, $current_xml_selection_path,
+      $variables) = @_;
+
+  if ($test =~ /^(.+)\/\[(.+)\]$/) {
+    my $path = $1;
+    $test = $2;
+    
+    $self->debug("evaluating test $test at path $path:");;
+
+    $self->{INDENT} += $self->{INDENT_INCR};
+    my $node = $self->_get_node_set ($path, $self->{XML_DOCUMENT},
+				     $current_xml_selection_path,
+				     $current_xml_node, $variables);
+    if (@$node) {
+      $current_xml_node = $$node[0];
+    } else {
+      return "";
+    }
+    $self->{INDENT} -= $self->{INDENT_INCR};
+  } else {
+    $self->debug("evaluating path or test $test:");;
+    my $node = $self->_get_node_set ($test, $self->{XML_DOCUMENT},
+				     $current_xml_selection_path,
+				     $current_xml_node, $variables, "silent");
+    $self->{INDENT} += $self->{INDENT_INCR};
+    if (@$node) {
+      $self->debug("path exists!");;
+      return "true";
+    } else {
+      $self->debug("not a valid path, evaluating as test");;
+    }
+    $self->{INDENT} -= $self->{INDENT_INCR}
+  }
+
+  $self->{INDENT} += $self->{INDENT_INCR};
+  my $result = &__evaluate_test__ ($self,$test, $current_xml_selection_path,$current_xml_node,$variables);
+  if ($result) {
+    $self->debug("test evaluates true..");
+  } else {
+    $self->debug("test evaluates false..");
+  }
+  $self->{INDENT} -= $self->{INDENT_INCR};
+  return $result;
+}
+
 sub _evaluate_template {
   my ($self, $template, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
@@ -1003,9 +1049,6 @@ sub _evaluate_template {
     } elsif ($node_type == CDATA_SECTION_NODE) {
       my $text = $self->{XML_DOCUMENT}->createTextNode ($child->getData);
       $self->_add_node($text, $current_result_node);
-
-#      $current_result_node->getLastChild->{_disable_output_escaping} = 1;
-      #$self->_add_node($child, $current_result_node);
     } elsif ($node_type == ENTITY_REFERENCE_NODE) {
       $self->_add_node($child, $current_result_node);
     } elsif ($node_type == DOCUMENT_TYPE_NODE) {
@@ -1372,7 +1415,13 @@ sub _value_of {
     $self->{INDENT} -= $self->{INDENT_INCR};
 
     if ($text ne '') {
-      $self->_add_node ($self->{XML_DOCUMENT}->createTextNode($text), $current_result_node);
+      my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
+      if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')
+        {
+        $self->debug("disabling output escaping");
+        bless $node,'XML::XSLT::DOM::TextDOE' ;
+      }
+      $self->_move_node ($node, $current_result_node); 
     } else {
       $self->debug("nothing left..");
     }
@@ -1787,35 +1836,26 @@ sub _processing_instruction {
 
 sub _process_with_params {
   my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
-      $variables, $oldvariables) = @_;
+      $variables, $params) = @_;
 
   my @params = $xsl_node->getElementsByTagName("$self->{XSL_NS}with-param");
   foreach my $param (@params) {
     my $varname = $param->getAttribute('name');
 
     if ($varname) {
-      if ($$oldvariables{$varname}) {
-	$$variables{$varname} = $$oldvariables{$varname};
-      } else {
-	my $value = $param->getAttribute('select');
-        
-	if (!$value) {
-	  # process content as template
-	  my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
+      my $value = $param->getAttribute('select');
 
-	  $self->_evaluate_template ($param,
-				       $current_xml_node,
-				       $current_xml_selection_path,
-				       $result, $variables, $oldvariables);
+      if (!$value) {
+	# process content as template
+	$value = $self->{XML_DOCUMENT}->createDocumentFragment;
 
-	  $self->{INDENT} += $self->{INDENT_INCR};
-	  $value = $self->__string__ ($result);
-	  $self->{INDENT} -= $self->{INDENT_INCR};
-
-	  $result->dispose();
-	}
-
+	$self->_evaluate_template ($param,
+				     $current_xml_node,
+				     $current_xml_selection_path,
+				     $value, $variables, {} );
 	$$params{$varname} = $value;
+
+      }
     } else {
       $self->warn(q{Expected attribute "name" in <} .
 		  $self->{XSL_NS} . q{with-param> !});
@@ -1893,7 +1933,7 @@ sub _choose {
       $notdone = "";
     }
   }
-  
+
   if ($notdone) {
     $self->debug("nothing done!");;
   }
@@ -1928,54 +1968,8 @@ sub _if {
   $self->{INDENT} -= $self->{INDENT_INCR};
 }
 
-sub _evaluate_test {
-  my ($self, $test, $current_xml_node, $current_xml_selection_path,
-      $variables) = @_;
-
-  if ($test =~ /^(.+)\/\[(.+)\]$/) {
-    my $path = $1;
-    $test = $2;
-    
-    $self->debug("evaluating test $test at path $path:");;
-
-    $self->{INDENT} += $self->{INDENT_INCR};
-    my $node = $self->_get_node_set ($path, $self->{XML_DOCUMENT},
-				       $current_xml_selection_path,
-				       $current_xml_node, $variables);
-    if (@$node) {
-      $current_xml_node = $$node[0];
-    } else {
-      return "";
-    }
-    $self->{INDENT} -= $self->{INDENT_INCR};
-  } else {
-    $self->debug("evaluating path or test $test:");;
-    my $node = $self->_get_node_set ($test, $self->{XML_DOCUMENT},
-				       $current_xml_selection_path,
-				       $current_xml_node, $variables, "silent");
-    $self->{INDENT} += $self->{INDENT_INCR};
-    if (@$node) {
-      $self->debug("path exists!");;
-      return "true";
-    } else {
-      $self->debug("not a valid path, evaluating as test");;
-    }
-    $self->{INDENT} -= $self->{INDENT_INCR};
-  }
-
-  $self->{INDENT} += $self->{INDENT_INCR};
-  my $result = &__evaluate_test__ ($test, $current_xml_node);
-  if ($result) {
-    $self->debug("test evaluates true..");;
-  } else {
-    $self->debug("test evaluates false..");;
-  }
-  $self->{INDENT} -= $self->{INDENT_INCR};
-  return $result;
-}
-
 sub __evaluate_test__ {
-  my ($Self,$test, $path,$node,$variables) = @_;
+  my ($self,$test, $path,$node,$variables) = @_;
 
   #print "testing with \"$test\" and ", ref $node,"\n";
   if ($test =~ /^\s*\@([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
@@ -1986,15 +1980,15 @@ sub __evaluate_test__ {
     return ($attr eq $2);
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
     my $expval=$2;
-    my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
+    my $nodeset=&_get_node_set($self,$1,$self->{XML_DOCUMENT},$path,$node,$variables);
     return ($expval ne '') unless @$nodeset;
-    my $content = &__string__($Self,$$nodeset[0]);
+    my $content = &__string__($self,$$nodeset[0]);
     return ($content ne $expval);
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*=\s*['"](.*)['"]\s*$/) {
     my $expval=$2;
-    my $nodeset=&_get_node_set($Self,$1,$Self->[XML_DOCUMENT],$path,$node,$variables);
+    my $nodeset=&_get_node_set($self,$1,$self->{XML_DOCUMENT},$path,$node,$variables);
     return ($expval eq '') unless @$nodeset;
-    my $content = &__string__($Self,$$nodeset[0]);
+    my $content = &__string__($self,$$nodeset[0]);
     return ($content eq $expval);
   } else {
     return "";
@@ -2070,7 +2064,13 @@ sub _text {
   $self->{INDENT} -= $self->{INDENT_INCR};
 
   if ($text ne '') {
-    $self->_move_node ($self->{XML_DOCUMENT}->createTextNode ($text), $current_result_node);
+    my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
+    if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')
+      {
+      $self->debug("disabling output escaping");
+      bless $node,'XML::XSLT::DOM::TextDOE' ;
+    }
+    $self->_move_node ($node, $current_result_node);
   } else {
     $self->debug("nothing left..");
   }
@@ -2134,7 +2134,7 @@ sub _comment {
 
 sub _variable {
   my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
-      $current_result_node, $variables, $oldvariables) = @_;
+      $current_result_node, $variables, $params, $is_param) = @_;
   
   my $varname = $xsl_node->getAttribute ('name');
   
@@ -2612,11 +2612,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.23 $
+Revision: $Revision: 1.24 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/01/06 04:00:18 $
+      On: $Date: 2001/01/06 07:18:18 $
 
-  RCS ID: $Id: XSLT.pm,v 1.23 2001/01/06 04:00:18 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.24 2001/01/06 07:18:18 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
