@@ -1,4 +1,4 @@
-# $Id: zeroes.t,v 1.1 2000/08/10 13:33:59 nejedly Exp $
+# $Id: zeroes.t,v 1.2 2000/08/10 14:29:19 nejedly Exp $
 # check the ``0'' bug && the interface
 
 use strict;
@@ -44,14 +44,18 @@ $parser->transform(\<<\EOX);
 EOX
 };
 
-print 'not ' if $@;
+if($@)
+ {
+ print "not ok 4 # $@\n";
+ exit();
+}
 print "ok 4\n";
 
 my $outstr= eval { $parser->toString };
 
 if($@)
  {
- print "not ok 5 #$@\n";
+ print "not ok 5 # $@\n";
  exit;
 }
 print "ok 5\n";
