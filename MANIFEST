@@ -29,7 +29,6 @@ examples/identity.xsl
 examples/identity.xsl_org
 examples/test2.xml
 t/00-load.t
-t/01-simple.t
 Makefile.PL
 README
 XSLT.pm

@@ -8,3 +8,8 @@
 	function is more properly performed at the time of installation
 	and not at run time.
 
+2000-06-28  Bron Gondwana  <perlcode@brong.net>
+
+	* XSLT.pm: Removed attempt to call dispose on DOMparser as this
+	doesn't actually have a dispose method.  Incremented version
+	number to 0.23.
