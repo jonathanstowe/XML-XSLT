@@ -12,6 +12,6 @@ WriteMakefile(
               VERSION_FROM  => 'XSLT.pm',
               PREREQ_PM     => { XML::Parser => '2.23',
 				 XML::DOM    => '1.25' },
-	      PL_FILES      => { 'xslt-parser' => 'xslt-parser'},
+	      EXE_FILES      => ['xslt-parser'],
              );
 
