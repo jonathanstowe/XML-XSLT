@@ -1,49 +1,55 @@
 use XML::XSLT;
 
-print "1..1\n";
+%t = ( 'apply-imports'   => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'apply-templates' => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'attribute'       => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'attribute-set'   => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'call-template'   => {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'choose'          => {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'comment'         => {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'copy'            => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'copy-of'         => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'decimal-format'  => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'element'         => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'fallback'        => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'for-each'        => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'if'              => {test => 0.5,   xsl => q{}, xml => q{}, out => q{}},
+       'import'          => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'include'         => {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'key'             => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'message'         => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'namespace-alias' => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'number'          => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'otherwise'       => {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'output'          => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'param'           => {test => 0.2,   xsl => q{}, xml => q{}, out => q{}},
+       'preserve-space'  => {test => undef, xsl => q{}, xml => q{}, out => q{}},
+       'processing-instruction'  =>
+                            {test => 1,     xsl => q{}, xml => q{}, out => q{}},
+       'sort'            => {test => undef,   xsl => q{}, xml => q{}, out => q{}},
+       'strip-space'     => {test => undef,   xsl => q{}, xml => q{}, out => q{}},
+       'stylesheet'      => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'template'        => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'text'            => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'transform'       => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'value-of'        => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'when'            => {test => 0.5,     xsl => q{}, xml => q{}, out => q{}},
+       'with-param'      => {test => 0.2,     xsl => q{}, xml => q{}, out => q{}},
+     );
 
-$xsl = q{<?xml version="1.0"?>
-<xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
-  <xsl:template match="/">
-    <xsl:processing-instruction name="cml">version="1.0" encoding="ISO-8859-1"</xsl:processing-instruction>
-    <![CDATA[<!DOCTYPE molecule SYSTEM "cml.dtd" []>]]>
-    <xsl:apply-templates/>
-  </xsl:template>
 
-  <xsl:template match="MOL">
-    <molecule id="{@ID}">
-      <xsl:apply-templates/>
-    </molecule>
-  </xsl:template>
+foreach(keys %t) {
+  push @test, $_ if $t{$_}->{test} == 1;
+}
 
-  <xsl:template match="XVAR">
-	<xsl:choose>
-	  <xsl:when test="./[@BUILTIN='BOILINGPOINT']">
-            <float title="BoilingPoint" units="degrees Celsius"><xsl:value-of select="."/></float>
-	  </xsl:when>
-	  <xsl:when test="./[@BUILTIN='MELTINGPOINT']">
-            <float title="MeltingPoint" units="degrees Celsius"><xsl:value-of select="."/></float>
-	  </xsl:when>
-	</xsl:choose>
-  </xsl:template>
-</xsl:stylesheet>
-};
-$xml = q{<?xml version="1.0" encoding="ISO-8859-1"?>
-<CML>
-<MOL ID="95-48-7">
-  <XVAR BUILTIN="BOILINGPOINT" UNITS="degrees Celsius">191.04</XVAR>
-  <XVAR BUILTIN="MELTINGPOINT" UNITS="degrees Celsius">29.8</XVAR>
-</MOL>
-</CML>
-};
-$expected = q{
-};
+print "1.." . scalar @test . "\n";
 
-$p = XML::XSLT->new($xsl, "STRING");
-$p->transform_document ($xml, "STRING");
-$r = $p->result_string;
-
-print "not "
-  unless $r eq $expected;
-print "ok 1\n";
-
+foreach (0..$#test) {
+  $p = XML::XSLT->new($t{$test[$_]}->{xsl}, "STRING");
+  my $r;
+  eval {$p->transform_document ($t{$test[$_]}->{xml}, "STRING");
+	$r = $p->result_string};
+  print "not "
+    if defined $@ or $r ne $t{$test[$_]}->{out};
+  print "ok " . ($_ + 1) . "\n";
+}
