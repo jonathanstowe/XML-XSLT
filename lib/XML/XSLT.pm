@@ -1,9 +1,15 @@
-###############################################################################
+##############################################################################
 #
 # Perl module: XML::XSLT
 #
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
+#
+#    $Log: XSLT.pm,v $
+#    Revision 1.8  2001/12/17 11:32:08  gellyfish
+#    * Rolled in various patches
+#    * Added new tests
+#
 #
 ###############################################################################
 
@@ -34,7 +40,7 @@ use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.33';
+$VERSION = '0.34';
 
 @ISA         = qw( Exporter );
 @EXPORT_OK   = qw( &transform &serve );
@@ -109,9 +115,23 @@ sub serve {
     }
   }
 
+  if ($self->{DOCTYPE_SYSTEM} or $self->{DOCTYPE_PUBLIC}) {
+    my $root_name = $self->{RESULT_DOCUMENT}->getElementsByTagName('*',0)->item(0)->getTagName();
+    my $doctype;
+    if ($self->{DOCTYPE_PUBLIC}) {
+      $doctype = qq{<!DOCTYPE $root_name PUBLIC "} . $self->{DOCTYPE_PUBLIC} .
+      qq{" "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
+    } else {
+      $doctype = qq{<!DOCTYPE $root_name SYSTEM "} . $self->{DOCTYPE_SYSTEM} . qq{">\n};
+    }
+    $ret = $doctype . $ret;
+  }
+
+  $self->{OUTPUT_ENCODING} ||= 'UTF-8';
+
   if($args{xml_declaration}) {
-    $ret = '<?xml version="' . $args{xml_version} . '" encoding="UTF-8"?>'.
-      "\n" . $ret;
+    $ret = '<?xml version="' . $args{xml_version} . '" encoding="' . 
+            $self->{OUTPUT_ENCODING} . '"?>'.  "\n" . $ret;
   }
 
   if($args{http_headers}) {
@@ -560,17 +580,16 @@ sub __set_xsl_output {
     $self->{METHOD} = $method->getNodeValue if defined $method;
 
     my $omit = $attribs->getNamedItem('omit-xml-declaration');
-    $self->{OMIT_XML_DECL} = defined $omit->getNodeValue ?
-      $omit->getNodeValue : 'no';
+    $self->{OMIT_XML_DECL} = $omit ? $omit->getNodeValue : 'no';
 
     if ($self->{OMIT_XML_DECL} ne 'yes' && $self->{OMIT_XML_DECL} ne 'no') {
       $self->warn(qq{Wrong value for attribute "omit-xml-declaration" in\n\t} .
 		  $self->{XSL_NS} . qq{output, should be "yes" or "no"});
     }
 
-    if (! $self->{OMIT_XML_DECL}) {
-      my $output_ver = $attribs->getNamedItem('version')->getNodeValue;
-      my $output_enc = $attribs->getNamedItem('encoding')->getNodeValue;
+    if ( $self->{OMIT_XML_DECL} eq 'no' ) {
+      my $output_ver = $attribs->getNamedItem('version');
+      my $output_enc = $attribs->getNamedItem('encoding');
       $self->{OUTPUT_VERSION} = $output_ver->getNodeValue
 	if defined $output_ver;
       $self->{OUTPUT_ENCODING} = $output_enc->getNodeValue
@@ -590,6 +609,52 @@ sub __set_xsl_output {
   } else {
     $self->debug("Default Output options being used");
   }
+}
+
+## JNS1712
+
+sub __get_attribute_sets
+{
+    my ( $self ) = @_;
+
+    my $doc = $self->{XSL_DOCUMENT};
+    my $nsp = $self->{XSL_NS};
+    my $tagname = $nsp . 'attribute-set';
+    foreach my $attribute_set ( $doc->getElementsByTagName($tagname,0))
+    {
+       my $attribs = $attribute_set->getAttributes();
+       next unless defined $attribs;
+       my $name_attr = $attribs->getNamedItem('name');
+       next unless defined $name_attr;
+       my $name = $name_attr->getValue();
+       $self->debug("processing attribute-set $name");  
+
+       $self->{ATTRIBUTE_SETS}->{$name} = {};
+
+       my $tagname = $nsp . 'attribute';
+
+       foreach my $attribute ( $attribute_set->getElementsByTagName($tagname,0))
+       {
+          my $attribs = $attribute->getAttributes();
+          next unless defined $attribs;
+          my $name_attr = $attribs->getNamedItem('name');
+          next unless defined $name_attr;
+          my $attr_name = $name_attr->getValue();
+          $self->debug("Processing attribute $attr_name");
+          if ( $attr_name )
+          {
+             my $result = $self->{XML_DOCUMENT}->createDocumentFragment();
+             $self->_evaluate_template($attribute,
+                                       $self->{XML_DOCUMENT},
+                                       '/',
+                                       $result); # might need variables
+             my $value = $self->__string__($result);
+             $self->{ATTRIBUTE_SETS}->{$name}->{$attr_name} = $value;
+             $result->dispose();
+             $self->debug("Adding attribute $attr_name with value $value");
+          }
+       }
+    }
 }
 
 sub open_project {
@@ -761,7 +826,7 @@ sub print_output {
     if ($self->{METHOD} eq 'xml' || $self->{METHOD} eq 'html') {
       if (($self->{OMIT_XML_DECL} eq 'no') && $self->{OUTPUT_VERSION}
 	  && $self->{OUTPUT_ENCODING}) {
-	print "<?xml version=\"$self->{OUTPUT_VERSION}\" encoding=\"$self->{OUTPUT_ENCODING}\"?>\n";
+	print qq{<?xml version="$self->{OUTPUT_VERSION}" encoding="$self->{OUTPUT_ENCODING}"?>\n};
       }
     }
     if ($self->{DOCTYPE_SYSTEM}) {
@@ -823,8 +888,10 @@ sub __open_document {
 
   $self->debug("opening document");
 
-  eval {
-    if(length $args{Source} < 255 &&
+  eval 
+  {
+    my $ref = ref($args{Source});
+    if(!$ref && length $args{Source} < 255 && 
        (-f $args{Source} ||
 	lc(substr($args{Source}, 0, 5)) eq 'http:' ||
 	lc(substr($args{Source}, 0, 6)) eq 'https:' ||
@@ -833,24 +900,31 @@ sub __open_document {
 				# Filename
       $self->debug("Opening URL");
       $doc = $self->__open_by_filename($args{Source}, $args{base});
-    } elsif(!ref $args{Source}) {
+    } elsif(!$ref) {
 				# String
       $self->debug("Opening String");
       $doc = $self->{PARSER}->parse ($args{Source});
-    } elsif(ref $args{Source} eq "SCALAR") {
+    } elsif($ref eq "SCALAR") {
 				# Stringref
       $self->debug("Opening Stringref");
       $doc = $self->{PARSER}->parse (${$args{Source}});
-    } elsif(ref $args{Source} eq "XML::DOM::Document") {
+    } elsif($ref eq "XML::DOM::Document") {
 				# DOM object
       $self->debug("Opening XML::DOM");
       $doc = $args{Source};
-    } else {
+    } elsif ($ref eq "GLOB") { # This is a file glob
+      $self->debug("Opening GLOB");
+      my $ioref = *{$args{Source}}{IO};
+      $doc = $self->{PARSER}->parse($ioref);
+    } elsif (UNIVERSAL::isa($args{Source}, 'IO::Handle')) { # IO::Handle
+      $self->debug("Opening IO::Handle");
+      $doc = $self->{PARSER}->parse($args{Source}); 
+    }
+      else {
       $doc = undef;
     }
   };
   die "Error while parsing: $@\n". $args{Source} if $@;
-
   return $doc;
 }
 
@@ -1047,8 +1121,7 @@ sub _evaluate_template {
 				$current_result_node, $variables,
 				$oldvariables);
     } elsif ($node_type == TEXT_NODE) {
-      # strip whitespace here?
-      $self->_add_node ($child, $current_result_node);
+        $self->_add_node ($child, $current_result_node);
     } elsif ($node_type == CDATA_SECTION_NODE) {
       my $text = $self->{XML_DOCUMENT}->createTextNode ($child->getData);
       $self->_add_node($text, $current_result_node);
@@ -1335,6 +1408,15 @@ sub _evaluate_element {
 			  $current_xml_selection_path,
 			  $current_result_node, $variables, $oldvariables, 0);
 
+    } elsif ( $xsl_tag eq 'sort' ) { 
+      $self->_sort ($xsl_node, $current_xml_node,
+                    $current_xml_selection_path,
+                    $current_result_node, $variables, $oldvariables, 0);
+    } elsif ( $xsl_tag eq 'attribute-set' ) { 
+      $self->_attribute_set ($xsl_node, $current_xml_node,
+                             $current_xml_selection_path,
+                             $current_result_node, $variables, 
+                             $oldvariables, 0);
     } else {
       $self->_add_and_recurse ($xsl_node, $current_xml_node,
 				 $current_xml_selection_path,
@@ -1992,26 +2074,96 @@ sub _if {
 sub __evaluate_test__ {
   my ($self,$test, $path,$node,$variables) = @_;
 
-  #print "testing with \"$test\" and ", ref $node,"\n";
-  if ($test =~ /^\s*\@([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
+  my $tagname = eval { $node->getTagName() } || '';
+
+  $self->debug(qq{testing with "$test" and $tagname});
+
+  if ($test =~ /^\s*\@([\w\.\:\-]+)\s*(<=|>=|!=|<|>|=)?\s*['"]?([^'"]*?)['"]?\s*$/) {
     my $attr = $node->getAttribute($1);
-    return ($attr ne $2);
-  } elsif ($test =~ /^\s*\@([\w\.\:\-]+)\s*=\s*['"](.*)['"]\s*$/) {
-    my $attr = $node->getAttribute($1);
-    return ($attr eq $2);
-  } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*!=\s*['"](.*)['"]\s*$/) {
-    my $expval=$2;
+    
+    my $test = $2 ;
+    $test =~ s/\s+//g;
+    my $expval = $3;
+    my $numeric = ($attr =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0);
+
+    $self->debug("evaluating $attr $test $expval " );
+
+    if ( $test eq '!=' )
+    {
+       $self->debug("$numeric ? $attr != $expval : $attr ne $expval");
+       return $numeric ? $attr != $expval : $attr ne $expval;
+    }
+    elsif ( $test eq '=' )
+    {
+       $self->debug("$numeric ? $attr == $expval : $attr eq $expval");
+       return $numeric ? $attr == $expval : $attr eq $expval;
+    }
+    elsif ( $test eq '<' )
+    {
+       $self->debug("$numeric ? $attr < $expval : $attr lt $expval");
+       return $numeric ? $attr < $expval : $attr lt $expval;
+    }
+    elsif ( $test eq '>' )
+    { 
+       $self->debug("$numeric ? $attr > $expval : $attr gt $expval");
+       return $numeric ? $attr > $expval : $attr gt $expval;
+    }
+    elsif ( $test eq '>=' )
+    {
+       $self->debug("$numeric ? $attr >= $expval : $attr ge $expval");
+       return $numeric ? $attr >= $expval : $attr ge $expval;
+    }
+    elsif ( $test eq '<=' )
+    {
+       $self->debug("$numeric ? $attr <= $expval : $attr le $expval");
+       return $numeric ? $attr <= $expval : $attr le $expval;
+    }
+    else
+    {
+       $self->debug("no test matches");
+       return 0;
+    }
+  } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*(<=|>=|!=|=|<|>)\s*['"]?([^'"]*)['"]?\s*$/) {
+    my $expval = $3;
+    my $test   = $2;
     my $nodeset=&_get_node_set($self,$1,$self->{XML_DOCUMENT},$path,$node,$variables);
     return ($expval ne '') unless @$nodeset;
     my $content = &__string__($self,$$nodeset[0]);
-    return ($content ne $expval);
-  } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*=\s*['"](.*)['"]\s*$/) {
-    my $expval=$2;
-    my $nodeset=&_get_node_set($self,$1,$self->{XML_DOCUMENT},$path,$node,$variables);
-    return ($expval eq '') unless @$nodeset;
-    my $content = &__string__($self,$$nodeset[0]);
-    return ($content eq $expval);
+    my $numeric = $content =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0;
+
+    $self->debug("evaluating $content $test $expval");
+
+    if ( $test eq '!=' )
+    {
+       return $numeric ? $content != $expval : $content ne $expval;
+    }
+    elsif ( $test eq '=' )
+    {
+       return $numeric ? $content == $expval : $content eq $expval;
+    }
+    elsif ( $test eq '<' )
+    {
+       return $numeric ? $content < $expval : $content lt $expval;
+    }
+    elsif ( $test eq '>' )
+    { 
+       return $numeric ? $content > $expval : $content gt $expval;
+    }
+    elsif ( $test eq '>=' )
+    {
+       return $numeric ? $content >= $expval : $content ge $expval;
+    }
+    elsif ( $test eq '<=' )
+    {
+       return $numeric ? $content <= $expval : $content le $expval;
+    }
+    else
+    {
+      $self->debug("no test matches");
+      return 0;
+    }
   } else {
+    $self->debug("no match for test");
     return "";
   }
 }
@@ -2194,12 +2346,28 @@ sub _variable {
 		$self->{XSL_NS} . q{param> or <} .
 		$self->{XSL_NS} . q{variable>});
   }
+}			  
+
+# not implemented - but log it and make it go away
+sub _sort
+{
+  my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $current_result_node, $variables, $params, $is_param) = @_;
+  
+  $self->debug("dummy process for sort");
+}
+
+sub _attribute_set
+{
+  my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $current_result_node, $variables, $params, $is_param) = @_;
+
+  $self->debug("in _attribute_set");
 }
 
 1;
 
-__END__
-
+__DATA__
 =head1 SYNOPSIS
 
  use XML::XSLT;
@@ -2639,11 +2807,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.7 $
+Revision: $Revision: 1.8 $
    Label: $Name:  $
 
-Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/04/06 02:29:05 $
+Last Chg: $Author: gellyfish $ 
+      On: $Date: 2001/12/17 11:32:08 $
 
-  RCS ID: $Id: XSLT.pm,v 1.7 2001/04/06 02:29:05 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.8 2001/12/17 11:32:08 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
