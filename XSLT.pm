@@ -6,7 +6,7 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 # Now in Sourceforge,
-# $Id: XSLT.pm,v 1.6 2000/06/15 05:08:04 brong Exp $
+# $Id: XSLT.pm,v 1.7 2000/06/16 21:28:54 hexmode Exp $
 #
 ################################################################################
 
@@ -27,45 +27,36 @@ use vars qw ( $VERSION @ISA @EXPORT_OK
 	      #$XML_DECL_NODE $ATTLIST_DECL_NODE
 
 use LWP::UserAgent;
-use XML::DOM;
+use XML::DOM 1.25;
 
-BEGIN {
-  require XML::DOM;
+$VERSION = '0.22';
 
-  my $needVersion = '1.25';
-  my $domVersion = $XML::DOM::VERSION;
-  die "need at least XML::DOM version $needVersion (current=$domVersion)"
-    unless $domVersion >= $needVersion;
+@ISA         = qw( Exporter );
+@EXPORT_OK   = qw( &transform_document &result_string
+		   &result_tree &print_result);
 
-  $VERSION = '0.22';
+# pretty print HTML tags (<BR /> etc...)
+XML::DOM::setTagCompression (\&__my_tag_compression__);
 
-  @ISA         = qw( Exporter );
-  @EXPORT_OK   = qw( &transform_document &result_string
-                     &result_tree &print_result);
-
-  # pretty print HTML tags (<BR /> etc...)
-  XML::DOM::setTagCompression (\&__my_tag_compression__);
-
-  ### added for efficiency reasons
-  $ELEMENT_NODE 	       = ELEMENT_NODE;
-  $ATTRIBUTE_NODE	       = ATTRIBUTE_NODE;
-  $TEXT_NODE		       = TEXT_NODE;
-  $CDATA_SECTION_NODE	       = CDATA_SECTION_NODE;
-  $ENTITY_REFERENCE_NODE       = ENTITY_REFERENCE_NODE;
-  $ENTITY_NODE  	       = ENTITY_NODE;
-  $PROCESSING_INSTRUCTION_NODE = PROCESSING_INSTRUCTION_NODE;
-  $COMMENT_NODE 	       = COMMENT_NODE;
-  $DOCUMENT_NODE	       = DOCUMENT_NODE;
-  $DOCUMENT_TYPE_NODE	       = DOCUMENT_TYPE_NODE;
-  $DOCUMENT_FRAGMENT_NODE      = DOCUMENT_FRAGMENT_NODE;
-  $NOTATION_NODE	       = NOTATION_NODE;
-  ### these node ID's are not part of the Reccomendation
-  #$UNKNOWN_NODE		= UNKNOWN_NODE;
-  #$ELEMENT_DECL_NODE  	 	= ELEMENT_DECL_NODE;
-  #$ATT_DEF_NODE		= ATT_DEF_NODE;
-  #$XML_DECL_NODE		= XML_DECL_NODE;
-  #$ATTLIST_DECL_NODE  	 	= ATTLIST_DECL_NODE;
-}
+### added for efficiency reasons
+$ELEMENT_NODE 	       = ELEMENT_NODE;
+$ATTRIBUTE_NODE	       = ATTRIBUTE_NODE;
+$TEXT_NODE		       = TEXT_NODE;
+$CDATA_SECTION_NODE	       = CDATA_SECTION_NODE;
+$ENTITY_REFERENCE_NODE       = ENTITY_REFERENCE_NODE;
+$ENTITY_NODE  	       = ENTITY_NODE;
+$PROCESSING_INSTRUCTION_NODE = PROCESSING_INSTRUCTION_NODE;
+$COMMENT_NODE 	       = COMMENT_NODE;
+$DOCUMENT_NODE	       = DOCUMENT_NODE;
+$DOCUMENT_TYPE_NODE	       = DOCUMENT_TYPE_NODE;
+$DOCUMENT_FRAGMENT_NODE      = DOCUMENT_FRAGMENT_NODE;
+$NOTATION_NODE	       = NOTATION_NODE;
+### these node ID's are not part of the Reccomendation
+#$UNKNOWN_NODE		= UNKNOWN_NODE;
+#$ELEMENT_DECL_NODE  	 	= ELEMENT_DECL_NODE;
+#$ATT_DEF_NODE		= ATT_DEF_NODE;
+#$XML_DECL_NODE		= XML_DECL_NODE;
+#$ATTLIST_DECL_NODE  	 	= ATTLIST_DECL_NODE;
 
     # private auxiliary function #
     sub __my_tag_compression__ {
