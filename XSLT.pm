@@ -6,7 +6,7 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 # Now in Sourceforge,
-# $Id: XSLT.pm,v 1.4 2000/06/14 16:13:05 brong Exp $
+# $Id: XSLT.pm,v 1.5 2000/06/14 16:17:00 brong Exp $
 #
 ################################################################################
 
@@ -37,7 +37,7 @@ BEGIN {
   die "need at least XML::DOM version $needVersion (current=$domVersion)"
     unless $domVersion >= $needVersion;
 
-  $VERSION = '0.21';
+  $VERSION = '0.22';
 
   @ISA         = qw( Exporter );
   @EXPORT_OK   = qw( &transform_document &result_string
