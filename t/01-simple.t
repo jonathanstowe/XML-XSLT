@@ -53,3 +53,5 @@ foreach (0..$#test) {
     if defined $@ or $r ne $t{$test[$_]}->{out};
   print "ok " . ($_ + 1) . "\n";
 }
+
+# minor change
