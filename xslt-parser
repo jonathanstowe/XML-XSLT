@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl -w
 
-# $Id: xslt-parser,v 1.8 2001/01/23 03:49:18 hexmode Exp $
+# $Id: xslt-parser,v 1.9 2001/03/01 05:22:45 hexmode Exp $
 
 use strict;
 use XML::XSLT;
@@ -65,7 +65,7 @@ my $usage = "Usage: $0 [options] <project>
   -n	     don't print content-type
   -s <file>  use <file> instead of <project>.xsl as template
   -w	     turns warnings on\n";
-getopts('cdnwsh:', \%opt) || die $usage;
+getopts('cdnws:h', \%opt) || die $usage;
 
 die $usage if $opt{h};
 
@@ -76,6 +76,7 @@ my $warnings = $opt{w} || 0;
 my $project = shift || die $usage;
 my $xslfile = $opt{'s'} || "$project.xsl";
 my $xmlfile = $project;
+
 my $xslt = XML::XSLT->new (Source   => $xslfile,
 			   debug    => $debug,
 			   warnings => $debug);

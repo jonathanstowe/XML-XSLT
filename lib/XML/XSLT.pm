@@ -21,6 +21,7 @@ package XML::XSLT;
 use strict;
 
 use XML::DOM 1.25;
+#use XML::Path;
 use LWP::Simple qw(get);
 use URI;
 use Cwd;
@@ -33,7 +34,7 @@ use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.31';
+$VERSION = '0.32';
 
 @ISA         = qw( Exporter );
 @EXPORT_OK   = qw( &transform &serve );
@@ -99,7 +100,9 @@ sub serve {
   if($args{clean}) {
     eval {require HTML::Clean};
 
-    unless($@) {
+    if($@) {
+      CORE::warn("Not passing through HTML::Clean -- install the module");
+    } else {
       my $hold = HTML::Clean->new(\$ret);
       $hold->strip;
       $ret = ${$hold->data};
@@ -500,6 +503,8 @@ sub __add_default_templates {
 				 $self->{TOP_XSL_NODE});
   $self->{XSL_DOCUMENT}->insertBefore($elem_template,
 				 $self->{TOP_XSL_NODE});
+#  print $self->{XSL_DOCUMENT}->toString;
+#  die;
 }
 
 # private auxiliary function #
@@ -844,7 +849,7 @@ sub __open_document {
       $doc = undef;
     }
   };
-  die "Error in parsing: $@" if $@;
+  die "Error while parsing: $@\n". $args{Source} if $@;
 
   return $doc;
 }
@@ -2634,11 +2639,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.4 $
+Revision: $Revision: 1.5 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/01/23 04:03:02 $
+      On: $Date: 2001/03/01 05:22:45 $
 
-  RCS ID: $Id: XSLT.pm,v 1.4 2001/01/23 04:03:02 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.5 2001/03/01 05:22:45 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
