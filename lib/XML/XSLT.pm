@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.23  2004/02/17 10:06:12  gellyfish
+#    * Added test for xsl:copy
+#
 #    Revision 1.22  2004/02/17 08:52:29  gellyfish
 #    * 'use-attribute-sets' works in xsl:copy and recursively
 #
@@ -830,13 +833,31 @@ sub __cache_templates
     }
 }
 
+=item xsl_output_method
+
+Get or set the <xsl:output method= attribute.  Valid arguments are 'html',
+'text' and 'xml'
+
+=cut
+
+sub xsl_output_method
+{
+    my ( $self, $method) = @_;
+
+	 if (defined $method and $method =~ /(?:html|text|xml)/ )
+	 {
+	    $self->{METHOD} = $method;
+	 }
+
+	 return exists $self->{METHOD} ? $self->{METHOD} : 'xml';
+}
+
 # private auxiliary function #
 sub __set_xsl_output
 {
     my $self = $_[0];
 
     # default settings
-    $self->{METHOD} = 'xml';
     $self->media_type('text/xml');
 
     # extraction of top-level xsl:output tag
@@ -852,7 +873,7 @@ sub __set_xsl_output
         my $media   = $attribs->getNamedItem('media-type');
         my $method  = $attribs->getNamedItem('method');
         $self->media_type( $media->getNodeValue ) if defined $media;
-        $self->{METHOD} = $method->getNodeValue if defined $method;
+        $self->xsl_output_method($method->getNodeValue) if defined $method;
 
         if ( my $omit = $attribs->getNamedItem('omit-xml-declaration') )
         {
@@ -1256,7 +1277,7 @@ sub print_output
     {
         print "Content-type: " . $self->media_type() . "\n\n";
 
-        if ( $self->{METHOD} eq 'xml' || $self->{METHOD} eq 'html' )
+        if ( $self->xsl_output_method =~ /(?:xml|html)/ )
         {
             unless ( $self->omit_xml_declaration() )
             {
@@ -3973,11 +3994,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.22 $
+Revision: $Revision: 1.23 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/17 08:52:29 $
+      On: $Date: 2004/02/17 10:06:12 $
 
-  RCS ID: $Id: XSLT.pm,v 1.22 2004/02/17 08:52:29 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.23 2004/02/17 10:06:12 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
