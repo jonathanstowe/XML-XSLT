@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.14  2001/12/24 16:00:19  gellyfish
+#    * Version released to CPAN
+#
 #    Revision 1.13  2001/12/20 09:21:42  gellyfish
 #    More refactoring
 #
@@ -58,7 +61,7 @@ use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.34';
+$VERSION = '0.40';
 
 @ISA         = qw( Exporter );
 @EXPORT_OK   = qw( &transform &serve );
@@ -3085,11 +3088,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.13 $
+Revision: $Revision: 1.14 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/20 09:21:42 $
+      On: $Date: 2001/12/24 16:00:19 $
 
-  RCS ID: $Id: XSLT.pm,v 1.13 2001/12/20 09:21:42 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.14 2001/12/24 16:00:19 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
