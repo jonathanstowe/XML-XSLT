@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.20  2003/06/24 16:34:51  gellyfish
+#    * Allowed both name and match attributes in templates
+#    * Lost redefinition warning with perl 5.8
+#
 #    Revision 1.19  2002/02/18 09:05:14  gellyfish
 #    Refactoring
 #
@@ -765,22 +769,10 @@ sub __cache_templates {
   foreach my $template (reverse $self->templates()) {
     if ($template->getParentNode->getTagName =~
 	/^([\w\.\-]+\:){0,1}(stylesheet|transform|include)/) {
-      my $match = $template->getAttribute ('match');
-      my $name = $template->getAttribute ('name');
-      if ($match && $name) {
-	$self->warn(qq{defining a template with both a "name" and a "match" attribute is not allowed!});
-	push (@{$self->{TEMPLATE_MATCH}}, "");
-	push (@{$self->{TEMPLATE_NAME}}, "");
-      } elsif ($match) {
-	push (@{$self->{TEMPLATE_MATCH}}, $match);
-	push (@{$self->{TEMPLATE_NAME}}, "");
-      } elsif ($name) {
-	push (@{$self->{TEMPLATE_MATCH}}, "");
-	push (@{$self->{TEMPLATE_NAME}}, $name);
-      } else {
-	push (@{$self->{TEMPLATE_MATCH}}, "");
-	push (@{$self->{TEMPLATE_NAME}}, "");
-      }
+      my $match = $template->getAttribute ('match') || '';
+      my $name = $template->getAttribute ('name') || '';
+      push (@{$self->{TEMPLATE_MATCH}}, $match);
+      push (@{$self->{TEMPLATE_NAME}}, $name);
     }
   }
 }
@@ -1118,6 +1110,7 @@ sub _my_print_text {
 sub toString {
   my $self = $_[0];
 
+  local $^W;
   local *XML::DOM::Text::print = \&_my_print_text;
 
   my $string = $self->result_document()->toString();
@@ -3370,11 +3363,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.19 $
+Revision: $Revision: 1.20 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2002/02/18 09:05:14 $
+      On: $Date: 2003/06/24 16:34:51 $
 
-  RCS ID: $Id: XSLT.pm,v 1.19 2002/02/18 09:05:14 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.20 2003/06/24 16:34:51 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
