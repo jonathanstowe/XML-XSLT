@@ -6,6 +6,11 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.9  2001/12/17 22:32:12  gellyfish
+#    * Added Test::More to Makefile.PL
+#    * Added _indent and _outdent methods
+#    * Placed __get_attribute_sets in transform()
+#
 #    Revision 1.8  2001/12/17 11:32:08  gellyfish
 #    * Rolled in various patches
 #    * Added new tests
@@ -80,9 +85,9 @@ sub new {
 
   $self->debug("creating parser object:");
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   $self->open_xsl(%args);
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   return $self;
 }
@@ -669,13 +674,13 @@ sub open_project {
   $deprecation_used{open_project} = 1;
 
   $self->debug("opening project:");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   $self->open_xml ($xml, %args);
   $self->open_xsl ($xsl, %args);
 
   $self->debug("done...");
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub transform {
@@ -683,15 +688,22 @@ sub transform {
   my %topvariables = $self->__parse_args(@_);
 
   $self->debug("transforming document:");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   $self->open_xml (%topvariables);
 
+  
   $self->debug("done...");
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
+
+  # The _get_attribute_set needs an open XML document
+
+  $self->_indent();
+  $self->__get_attribute_sets();
+  $self->_outdent();
 
   $self->debug("processing project:");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $root_template = $self->_match_template("match", '/', 1, '');
   croak "Can't find root template"
@@ -707,15 +719,15 @@ sub transform {
 			      );
 
   $self->debug("done!");
-  $self->{INDENT} -= $self->{INDENT_INCR};
-  $self->{RESULT_DOCUMENT};
+  $self->_outdent();
+  return $self->{RESULT_DOCUMENT};
 }
 
 sub process {
   my ($self, %topvariables) = @_;
 
   $self->debug("processing project:");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $root_template = $self->_match_template ("match", '/', 1, '');
 
@@ -732,7 +744,7 @@ sub process {
 			      );
 
   $self->debug("done!");
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 # Handles deprecations.
@@ -1061,7 +1073,7 @@ sub _evaluate_test {
     
     $self->debug("evaluating test $test at path $path:");;
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $node = $self->_get_node_set ($path, $self->{XML_DOCUMENT},
 				     $current_xml_selection_path,
 				     $current_xml_node, $variables);
@@ -1070,30 +1082,30 @@ sub _evaluate_test {
     } else {
       return "";
     }
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $self->debug("evaluating path or test $test:");;
     my $node = $self->_get_node_set ($test, $self->{XML_DOCUMENT},
 				     $current_xml_selection_path,
 				     $current_xml_node, $variables, "silent");
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     if (@$node) {
       $self->debug("path exists!");;
       return "true";
     } else {
       $self->debug("not a valid path, evaluating as test");;
     }
-    $self->{INDENT} -= $self->{INDENT_INCR}
+    $self->_outdent();
   }
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   my $result = &__evaluate_test__ ($self,$test, $current_xml_selection_path,$current_xml_node,$variables);
   if ($result) {
     $self->debug("test evaluates true..");
   } else {
     $self->debug("test evaluates false..");
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
   return $result;
 }
 
@@ -1103,7 +1115,7 @@ sub _evaluate_template {
 
   $self->debug(qq{evaluating template content with current path }
 	       . qq{"$current_xml_selection_path": });
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   die "No Template"
     unless defined $template && ref $template;
@@ -1113,7 +1125,7 @@ sub _evaluate_template {
     my $ref = ref $child;
 
     $self->debug("$ref");
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $node_type = $child->getNodeType;
     if ($node_type == ELEMENT_NODE) {
       $self->_evaluate_element ($child, $current_xml_node,
@@ -1138,11 +1150,11 @@ sub _evaluate_template {
 		  "($current_xml_selection_path)");
     }
 
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   }
 
   $self->debug("done!");
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _add_node {
@@ -1194,7 +1206,7 @@ sub _apply_templates {
 
   # process xsl:sort here
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $count = 1;
   foreach my $child (@$children) {
@@ -1243,7 +1255,7 @@ sub _apply_templates {
     $count++;
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_indent();
 }
 
 sub _for_each {
@@ -1264,7 +1276,7 @@ sub _for_each {
     my $children = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
 					   $current_xml_selection_path,
 					   $current_xml_node, $variables);
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $count = 1;
     foreach my $child (@$children) {
       my $node_type = $child->getNodeType;
@@ -1287,7 +1299,7 @@ sub _for_each {
       $count++;
     }
 
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $self->warn("expected attribute \"select\" in <$self->{XSL_NS}for-each>");
   }
@@ -1301,7 +1313,7 @@ sub _select_template {
   my $ref = ref $child;
   $self->debug(qq{selecting template $select for child type $ref of "$current_xml_selection_path":});
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $child_xml_selection_path = "$current_xml_selection_path/$select";
   my $template = $self->_match_template ("match", $select, $count,
@@ -1317,7 +1329,7 @@ sub _select_template {
     $self->debug("skipping template selection...");;
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _evaluate_element {
@@ -1332,7 +1344,7 @@ sub _evaluate_element {
     $ns .= ':';
   }
   $self->debug(qq{evaluating element `$xsl_tag' from `$current_xml_selection_path': });
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   if ($ns eq $self->{XSL_NS}) {
     my @attributes = $xsl_node->getAttributes->getValues;
@@ -1429,7 +1441,7 @@ sub _evaluate_element {
 					    $current_result_node, $variables, $oldvariables);
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _add_and_recurse {
@@ -1462,7 +1474,7 @@ sub _element {
   
   my $name = $xsl_node->getAttribute ('name');
   $self->debug("inserting Element named \"$name\":");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   if (defined $name) {
     my $result = $self->{XML_DOCUMENT}->createElement($name);
@@ -1478,7 +1490,7 @@ sub _element {
     $self->warn(q{expected attribute "name" in <} .
 		$self->{XSL_NS} . q{element>});
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 {
@@ -1511,10 +1523,10 @@ sub _value_of {
 
     $self->debug("stripping node to text:");
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $text = '';
     $text = $self->__string__ ($$xml_node[0]) if @$xml_node;
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
 
     if ($text ne '') {
       my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
@@ -1542,11 +1554,11 @@ sub __strip_node_to_text__ {
     $result = $node->getData;
   } elsif (($node_type == ELEMENT_NODE)
 	   || ($node_type == DOCUMENT_FRAGMENT_NODE)) {
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     foreach my $child ($node->getChildNodes) {
       $result .= &__strip_node_to_text__ ($self, $child);
     }
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   }
   return $result;
 }
@@ -1560,7 +1572,7 @@ sub __string__ {
     my $ref = (ref ($node) || "not a reference");
     $self->debug("stripping child nodes ($ref):");
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
 
     if ($ref eq "ARRAY") {
       return $self->__string__ ($$node[0], $depth);
@@ -1589,7 +1601,7 @@ sub __string__ {
     }
 
     $self->debug("  \"$result\"");
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $self->debug(" no result");
   }
@@ -1614,7 +1626,7 @@ sub _get_node_set {
 
   $self->debug(qq{getting node-set "$path" from "$current_path"});
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   # expand abbriviated syntax
   $path =~ s/\@/attribute\:\:/g;
@@ -1683,7 +1695,7 @@ sub _get_node_set {
       $current_node = &__get_node_set__ ($self, $path, [$current_node], $silent);
     }
 
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
     
     return $current_node;
   }
@@ -1769,7 +1781,7 @@ sub __try_a_step__ {
 sub __parent__ {
   my ($self, $path, $node, $silent) = @_;
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent()
   if (($node->getNodeType == DOCUMENT_NODE)
       || ($node->getNodeType == DOCUMENT_FRAGMENT_NODE)) {
     $self->debug("no parent!");;
@@ -1779,7 +1791,7 @@ sub __parent__ {
 
     $node = &__get_node_set__ ($self, $path, [$node], $silent);
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   return $node;
 }
@@ -1805,14 +1817,14 @@ sub __indexed_element__ {
     $node = "";
   }
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   if ($node) {
     $node = &__get_node_set__ ($self, $path, [$node], $silent);
   } else {
     $self->debug("failed!");;
     $node = [];
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   return $node;
 }
@@ -1823,41 +1835,40 @@ sub __element__ {
 
   $node = [$node->getElementsByTagName($element, $deep)];
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   if (@$node) {
     $node = &__get_node_set__($self, $path, $node, $silent);
   } else {
     $self->debug("failed!");;
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   return $node;
 }
 
 sub __attribute__ {
-  my ($self, $attribute, $path, $node, $silent) = @_;
-
+  my ($self, $attribute, $path, $node, $silent) = @_; 
   if ($attribute eq '*') {
     $node = [$node->getAttributes->getValues];
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     if ($node) {
       $node = &__get_node_set__ ($self, $path, $node, $silent);
     } else {
       $self->debug("failed!");;
     }
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $node = $node->getAttributeNode($attribute);
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     if ($node) {
       $node = &__get_node_set__ ($self, $path, [$node], $silent);
     } else {
       $self->debug("failed!");;
       $node = [];
     }
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   }
 
   return $node;
@@ -1868,13 +1879,13 @@ sub __get_nodes__ {
 
   my $result = [];
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   foreach my $child ($node->getChildNodes) {
     if ($child->getNodeType == $node_type) {
       $result = [@$result, &__get_node_set__ ($self, $path, [$child], $silent)];
     }
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 	
   if (! @$result) {
     $self->debug("failed!");;
@@ -1899,9 +1910,9 @@ sub _attribute_value_of {
 					 $current_xml_selection_path,
 					 $current_xml_node, $variables);
       if (@$node) {
-	$self->{INDENT} += $self->{INDENT_INCR};
+	$self->_indent();
 	my $text = $self->__string__ ($$node[0]);
-	$self->{INDENT} -= $self->{INDENT_INCR};
+	$self->_outdent();
 	$value =~ s/(\G[^\\]?)\{(.*?)[^\\]?\}/$1$text/;
       } else {
 	$value =~ s/(\G[^\\]?)\{(.*?)[^\\]?\}/$1/;
@@ -1983,7 +1994,7 @@ sub _call_template {
 				   $current_xml_selection_path,
 				   $variables, $params);
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $template = $self->_match_template ("name", $name, 0, '');
 
     if ($template) {
@@ -1993,7 +2004,7 @@ sub _call_template {
     } else {
       $self->warn("no template named $name found!");
     }
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $self->warn(q{Expected attribute "name" in <} .
 		$self->{XSL_NS} . q{call-template/>});
@@ -2006,7 +2017,7 @@ sub _choose {
 
   $self->debug("evaluating choose:");;
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $notdone = "true";
   my $testwhen = "active";
@@ -2041,7 +2052,7 @@ sub _choose {
     $self->debug("nothing done!");;
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _if {
@@ -2050,7 +2061,7 @@ sub _if {
 
   $self->debug("evaluating if:");;
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $test = $xsl_node->getAttribute ('test');
 
@@ -2068,7 +2079,7 @@ sub _if {
 		$self->{XSL_NS} . q{if>});
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub __evaluate_test__ {
@@ -2176,7 +2187,7 @@ sub _copy_of {
   my $select = $xsl_node->getAttribute('select');
   $self->debug("evaluating copy-of with select \"$select\":");;
   
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   if ($select) {
     $nodelist = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
 					$current_xml_selection_path,
@@ -2189,7 +2200,7 @@ sub _copy_of {
     $self->_add_node ($node, $current_result_node, "deep");
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _copy {
@@ -2199,7 +2210,7 @@ sub _copy {
 
   $self->debug("evaluating copy:");;
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   if ($current_xml_node->getNodeType == ATTRIBUTE_NODE) {
     my $attribute = $current_xml_node->cloneNode(0);
     $current_result_node->setAttributeNode($attribute);
@@ -2214,7 +2225,7 @@ sub _copy {
 				 $current_result_node->getLastChild,
 				 $variables, $oldvariables);
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _text {
@@ -2228,13 +2239,13 @@ sub _text {
 
   $self->debug("inserting text:");
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   $self->debug("stripping node to text:");
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   my $text = $self->__string__ ($xsl_node);
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   if ($text ne '') {
     my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
@@ -2248,7 +2259,7 @@ sub _text {
     $self->debug("nothing left..");
   }
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _attribute {
@@ -2257,7 +2268,7 @@ sub _attribute {
   
   my $name = $xsl_node->getAttribute ('name');
   $self->debug("inserting attribute named \"$name\":");
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   if ($name) {
     my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
@@ -2267,9 +2278,9 @@ sub _attribute {
 				 $current_xml_selection_path,
 				 $result, $variables, $oldvariables);
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
     my $text = $self->__string__ ($result);
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
 
     $current_result_node->setAttribute($name, $text);
     $result->dispose();
@@ -2277,7 +2288,7 @@ sub _attribute {
     $self->warn(q{expected attribute "name" in <} .
 		$self->{XSL_NS} . q{attribute>});
   }
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _comment {
@@ -2286,7 +2297,7 @@ sub _comment {
 
   $self->debug("inserting comment:");
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
 
   my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
 
@@ -2295,14 +2306,14 @@ sub _comment {
 			       $current_xml_selection_path,
 			       $result, $variables, $oldvariables);
 
-  $self->{INDENT} += $self->{INDENT_INCR};
+  $self->_indent();
   my $text = $self->__string__ ($result);
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 
   $self->_move_node ($self->{XML_DOCUMENT}->createComment ($text), $current_result_node);
   $result->dispose();
 
-  $self->{INDENT} -= $self->{INDENT_INCR};
+  $self->_outdent();
 }
 
 sub _variable {
@@ -2314,7 +2325,7 @@ sub _variable {
   if ($varname) {
     $self->debug("definition of variable \$$varname:");;
 
-    $self->{INDENT} += $self->{INDENT_INCR};
+    $self->_indent();
 
     if ( $is_param and exists $$params{$varname} ) {
       # copy from parent-template
@@ -2340,7 +2351,7 @@ sub _variable {
       $$variables{$varname} = $value;
     }
 
-    $self->{INDENT} -= $self->{INDENT_INCR};
+    $self->_outdent();
   } else {
     $self->warn(q{expected attribute "name" in <} .
 		$self->{XSL_NS} . q{param> or <} .
@@ -2363,6 +2374,19 @@ sub _attribute_set
       $current_result_node, $variables, $params, $is_param) = @_;
 
   $self->debug("in _attribute_set");
+}
+
+sub _indent
+{
+   my ( $self ) = @_;
+   $self->{INDENT} += $self->{INDENT_INCR};
+
+}
+
+sub _outdent
+{
+   my ( $self ) = @_;
+   $self->{INDENT} -= $self->{INDENT_INCR};
 }
 
 1;
@@ -2807,11 +2831,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.8 $
+Revision: $Revision: 1.9 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/17 11:32:08 $
+      On: $Date: 2001/12/17 22:32:12 $
 
-  RCS ID: $Id: XSLT.pm,v 1.8 2001/12/17 11:32:08 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.9 2001/12/17 22:32:12 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
