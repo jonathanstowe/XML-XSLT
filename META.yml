@@ -1,0 +1,20 @@
+--- #YAML:1.0
+name: XML-XSLT
+version: 0.40
+author:
+  - ~
+abstract: A perl module for processing XSLT
+license: perl
+requires:
+  Test::More: 0.33
+  XML::DOM: 1.25
+  XML::Parser: 2.23
+  perl: 5.6.1
+provides:
+  XML::XSLT:
+    file: lib/XML/XSLT.pm
+    version: 0.40
+  XML::XSLT::DOM::TextDOE:
+    file: lib/XML/XSLT.pm
+    version: 0.40
+generated_by: Module::Build version 0.23
