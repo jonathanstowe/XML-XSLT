@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.18  2002/01/16 21:05:27  gellyfish
+#    * Added the manpage as an example
+#    * Started to properly implement omit-xml-declaration
+#
 #    Revision 1.17  2002/01/13 10:35:00  gellyfish
 #    Updated pod
 #
@@ -47,7 +51,7 @@
 
 =head1 NAME
 
-   XML::XSLT - A perl module for processing XSLT
+XML::XSLT - A perl module for processing XSLT
 
 =cut
 
@@ -78,7 +82,6 @@ $VERSION = '0.40';
 @EXPORT_OK   = qw( &transform &serve );
 
 # pretty print HTML tags (<BR /> etc...)
-XML::DOM::setTagCompression (\&__my_tag_compression);
 
 my %deprecation_used;
 
@@ -752,7 +755,6 @@ sub __set_xsl_output {
   # default settings
   $self->{METHOD} = 'xml';
   $self->media_type('text/xml');
-  $self->{OMIT_XML_DECL} = 'yes';
 
   # extraction of top-level xsl:output tag
   my ($output) = 
@@ -766,15 +768,26 @@ sub __set_xsl_output {
     $self->media_type($media->getNodeValue) if defined $media;
     $self->{METHOD} = $method->getNodeValue if defined $method;
 
-    my $omit = $attribs->getNamedItem('omit-xml-declaration');
-    $self->{OMIT_XML_DECL} = $omit ? $omit->getNodeValue : 'no';
+    if (my $omit = $attribs->getNamedItem('omit-xml-declaration'))
+    {
+        if ($omit->getNodeValue() =~ /^(yes|no)$/)
+        {
+            $self->omit_xml_declaration($1);
+        }
+        else
+        {
 
-    if ($self->{OMIT_XML_DECL} ne 'yes' && $self->{OMIT_XML_DECL} ne 'no') {
-      $self->warn(qq{Wrong value for attribute "omit-xml-declaration" in\n\t} .
-		  $self->xsl_ns() . qq{output, should be "yes" or "no"});
+           # I would say that this should be fatal
+           # Perhaps there should be a 'strict' option to the constructor
+
+           my $m = qq{Wrong value for attribute "omit-xml-declaration" in\n\t} .
+		   $self->xsl_ns() . qq{output, should be "yes" or "no"};
+           $self->warn($m);
+        }
     }
 
-    if ( $self->{OMIT_XML_DECL} eq 'no' ) {
+    unless ( $self->omit_xml_declaration()) 
+    {
       my $output_ver = $attribs->getNamedItem('version');
       my $output_enc = $attribs->getNamedItem('encoding');
       $self->output_version($output_ver->getNodeValue)
@@ -782,7 +795,8 @@ sub __set_xsl_output {
       $self->output_encoding($output_enc->getNodeValue)
 	if defined $output_enc;
 
-      if (not $self->output_version() || not $self->output_encoding()) {
+      if (not $self->output_version() || not $self->output_encoding()) 
+      {
 	$self->warn(qq{Expected attributes "version" and "encoding" in\n\t} .
 		    $self->xsl_ns() . "output");
       }
@@ -811,6 +825,25 @@ sub __set_xsl_output {
   } else {
     $self->debug("Default Output options being used");
   }
+}
+
+sub omit_xml_declaration
+{
+   my ( $self, $omit_xml_declaration ) = @_;
+
+   if ( defined $omit_xml_declaration )
+   {
+      if ( $omit_xml_declaration =~ /^(yes|no)$/ )
+      {
+         $self->{OMIT_XML_DECL} = ($1 eq 'yes');
+      }
+      else
+      {
+         $self->{OMIT_XML_DECL} = $omit_xml_declaration ? 1 : 0;
+      }
+   }
+
+   return exists $self->{OMIT_XML_DECL} ? $self->{OMIT_XML_DECL} : 0;
 }
 
 sub cdata_sections
@@ -1100,7 +1133,7 @@ sub print_output {
     print "Content-type: " . $self->media_type() . "\n\n";
 
     if ($self->{METHOD} eq 'xml' || $self->{METHOD} eq 'html') {
-      if ($self->{OMIT_XML_DECL} eq 'no') 
+      unless ($self->omit_xml_declaration()) 
       {      
         print $self->xml_declaration(),"\n"; 
       }
@@ -3308,11 +3341,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.17 $
+Revision: $Revision: 1.18 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2002/01/13 10:35:00 $
+      On: $Date: 2002/01/16 21:05:27 $
 
-  RCS ID: $Id: XSLT.pm,v 1.17 2002/01/13 10:35:00 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.18 2002/01/16 21:05:27 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
