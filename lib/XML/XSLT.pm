@@ -15,22 +15,6 @@ XML::XSLT - A perl module for processing XSLT
 
 
 ######################################################################
-# Auxiliary package for disable-output-escaping
-######################################################################
-
-package XML::XSLT::DOM::TextDOE;
-use vars qw( @ISA );
-@ISA = qw( XML::DOM::Text );
-
-sub print
- {
- my ($self, $FILE) = @_;
- $FILE->print ($self->getData);
-}
-
-
-
-######################################################################
 package XML::XSLT;
 ######################################################################
 
@@ -1395,6 +1379,22 @@ sub _element {
   $self->{INDENT} -= $self->{INDENT_INCR};
 }
 
+{
+  ######################################################################
+  # Auxiliary package for disable-output-escaping
+  ######################################################################
+
+  package XML::XSLT::DOM::TextDOE;
+  use vars qw( @ISA );
+  @ISA = qw( XML::DOM::Text );
+
+  sub print {
+    my ($self, $FILE) = @_;
+    $FILE->print ($self->getData);
+  }
+}
+
+
 sub _value_of {
   my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables) = @_;
@@ -2612,11 +2612,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.1 $
+Revision: $Revision: 1.2 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2001/01/16 03:14:14 $
+      On: $Date: 2001/01/16 03:17:35 $
 
-  RCS ID: $Id: XSLT.pm,v 1.1 2001/01/16 03:14:14 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.2 2001/01/16 03:17:35 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
