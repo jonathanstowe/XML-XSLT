@@ -331,13 +331,14 @@ sub __preprocess_stylesheet {
 
   $Self->debug("preprocessing stylesheet...");
 
-  $Self->[TOP_XSL_NODE] = $Self->[XSL_DOCUMENT]->getFirstChild;
+  my @topelems= $Self->[XSL_DOCUMENT]->getElementsByTagName ('*', 0);
+  die "Can't find top-level XSL element!$/" unless defined $topelems[0];
+  $Self->[TOP_XSL_NODE] = $topelems[0];
+  
   $Self->__extract_namespaces;
   $Self->__get_stylesheet;
-
-  $Self->[TOP_XSL_NODE] = $Self->[XSL_DOCUMENT]->getFirstChild;
+  
   $Self->__expand_xsl_includes;
-  $Self->__extract_top_level_variables;
 
   $Self->__add_default_templates;
   $Self->__cache_templates;	# speed optim
@@ -379,7 +380,7 @@ sub __get_stylesheet {
     $template->appendChild ($template_content);
   }
 
-  $Self->[XSL_DOCUMENT] = $stylesheet;
+  $Self->[TOP_XSL_NODE] = $stylesheet;
 }
 
 # private auxiliary function #
@@ -459,29 +460,38 @@ sub __expand_xsl_includes {
 
 # private auxiliary function #
 sub __extract_top_level_variables {
-  my $Self = $_[0];
+  my ($Self, $params) = @_;
 
   $Self->debug("Extracting variables");
   foreach my $child ($Self->[TOP_XSL_NODE]->getElementsByTagName ('*',0)) {
-    my ($ns, $tag) = split(':', $child);
+    my ($ns, $tag) = split(':', $child->getTagName);
+    if(defined $tag)
+      { $ns.=':' }
+    else
+      { $tag=$ns; $ns='';}
 
-    if(($tag eq '' && $Self->[XSL_NS] eq '') ||
-       $Self->[XSL_NS] eq $ns) {
-      $tag = $ns if $tag eq '';
+    if($Self->[XSL_NS] eq $ns) {
 
       if ($tag eq 'variable' || $tag eq 'param') {
 
 	my $name = $child->getAttribute("name");
 	if ($name) {
-	  my $value = $child->getAttribute("select");
-	  if (!$value) {
-	    my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
-	    $Self->_evaluate_template ($child, $Self->[XML_DOCUMENT], '', $result);
-	    $value = $Self->_string ($result);
-	    $result->dispose();
+	  if( $tag eq 'param' and exists $$params{$name} )
+	    {
+	    $Self->debug("Using param `$name'");
+	    $Self->[VARIABLES]{$name} = $$params{$name};
+	  } else {
+	    my $value = $child->getAttribute("select");
+	    if (!$value) {
+	      my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
+	      $Self->_evaluate_template ($child, $Self->[XML_DOCUMENT], '', $result);
+	      $Self->debug("Setting $tag `$name' = (nodeset)");
+	      $Self->[VARIABLES]->{$name} = $result;
+	    } else {
+	      $Self->debug("Setting $tag `$name' = `$value'");
+	      $Self->[VARIABLES]->{$name} = $value;
+	    }
 	  }
-	  $Self->debug("Setting $tag `$name' = `$value'");
-	  $Self->[VARIABLES]->{$name} = $value;
 	} else {
 	  # Required, so we die (http://www.w3.org/TR/xslt#variables)
 	  die "$tag tag carries no name!";
@@ -526,12 +536,13 @@ sub __add_default_templates {
 
   $Self->debug("adding default templates to stylesheet");
   # add them to the stylesheet
-  $Self->[XSL_DOCUMENT]->insertBefore($pi_template,
-				 $Self->[TOP_XSL_NODE]);
-  $Self->[XSL_DOCUMENT]->insertBefore($attr_template,
-				 $Self->[TOP_XSL_NODE]);
-  $Self->[XSL_DOCUMENT]->insertBefore($elem_template,
-				 $Self->[TOP_XSL_NODE]);
+  my $refChild=$Self->[TOP_XSL_NODE]->getFirstChild;
+  $Self->[TOP_XSL_NODE]->insertBefore($pi_template,
+				 $refChild);
+  $Self->[TOP_XSL_NODE]->insertBefore($attr_template,
+				 $refChild);
+  $Self->[TOP_XSL_NODE]->insertBefore($elem_template,
+				 $refChild);
 }
 
 # private auxiliary function #
@@ -637,6 +648,7 @@ sub open_project {
 
   $Self->open_xml ($xml, %args);
   $Self->open_xsl ($xsl, %args);
+  $Self->__extract_top_level_variables( { } );  # no params
 
   $Self->debug("done...");
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -644,12 +656,12 @@ sub open_project {
 
 sub transform {
   my $Self = shift;
-  my %topvariables = $Self->__parse_args(@_);
+  my %args = $Self->__parse_args(@_);
 
   $Self->debug("transforming document:");
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  $Self->open_xml (%topvariables);
+  $Self->open_xml (%args);
 
   $Self->debug("done...");
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -661,15 +673,26 @@ sub transform {
   croak "Can't find root template"
     unless defined $root_template;
 
+  if( exists $args{params} ) {
+    $Self->__extract_top_level_variables( $args{params} );
+  } else {
+    $Self->__extract_top_level_variables( {} );  # no params
+  }
+  
+  my $topvariables;
+  if( exists $args{variables} )
+    {
+    $topvariables = { %{$args{variables}} , %{$Self->[VARIABLES]} } ;
+  } else {
+    $topvariables = { %{$Self->[VARIABLES]} } ;
+  }
 
-
-  %topvariables = (%{$Self->[VARIABLES]}, %topvariables);
   $Self->_evaluate_template ( $root_template,            # starting template: the root template
 			      $Self->[XML_DOCUMENT],     # current XML node: the root
 			      '',                        # current XML selection path: the root
 			      $Self->[RESULT_DOCUMENT],  # current result tree node: the root
-			      {()},                      # current known variables: none
-			      \%topvariables             # previously known variables: top level variables
+			      $topvariables,             # current known variables: top level variables
+			      { }                        # previously known variables: none
 			      );
 
   $Self->debug("done!");
@@ -1024,9 +1047,6 @@ sub _evaluate_template {
     } elsif ($node_type == CDATA_SECTION_NODE) {
       my $text = $Self->[XML_DOCUMENT]->createTextNode ($child->getData);
       $Self->_add_node($text, $current_result_node);
-
-#      $current_result_node->getLastChild->{_disable_output_escaping} = 1;
-      #$Self->_add_node($child, $current_result_node);
     } elsif ($node_type == ENTITY_REFERENCE_NODE) {
       $Self->_add_node($child, $current_result_node);
     } elsif ($node_type == DOCUMENT_TYPE_NODE) {
@@ -1067,7 +1087,8 @@ sub _apply_templates {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
   my $children;
-  my $newvariables = {()};
+  my $params={};
+  my $newvariables={%$variables};
 
   my $select = $xsl_node->getAttribute ('select');
 
@@ -1091,7 +1112,7 @@ sub _apply_templates {
 
   $Self->_process_with_params ($xsl_node, $current_xml_node,
 				 $current_xml_selection_path,
-				 $current_result_node, $variables, $oldvariables);
+				 $variables, $params);
 
   # process xsl:sort here
 
@@ -1139,7 +1160,7 @@ sub _apply_templates {
       $Self->_select_template ($child, $newselect, $newcount,
 				 $current_xml_node,
 				 $current_xml_selection_path,
-				 $current_result_node, $newvariables, $variables);
+				 $current_result_node, $newvariables, $params);
     }
     $count++;
   }
@@ -1290,7 +1311,7 @@ sub _evaluate_element {
     } elsif ($xsl_tag eq 'param') {
       $Self->_variable ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
-			  $current_result_node, $variables, $oldvariables);
+			  $current_result_node, $variables, $oldvariables, 1);
 
     } elsif ($xsl_tag eq 'processing-instruction') {
       $Self->_processing_instruction ($xsl_node, $current_result_node);
@@ -1306,7 +1327,7 @@ sub _evaluate_element {
     } elsif ($xsl_tag eq 'variable') {
       $Self->_variable ($xsl_node, $current_xml_node,
 			  $current_xml_selection_path,
-			  $current_result_node, $variables, $oldvariables);
+			  $current_result_node, $variables, $oldvariables, 0);
 
     } else {
       $Self->_add_and_recurse ($xsl_node, $current_xml_node,
@@ -1502,7 +1523,7 @@ sub _get_node_set {
   if ($path =~ /^\$([\w\.\-]+)$/) {
     my $varname = $1;
     my $var = $$variables{$varname};
-    if ($var) {
+    if (defined $var) {
       if (ref ($$variables{$varname}) eq 'ARRAY') {
 	# node-set array-ref
 	return $$variables{$varname};
@@ -1812,37 +1833,28 @@ sub _processing_instruction {
 }
 
 sub _process_with_params {
-  my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
-      $variables, $oldvariables) = @_;
+  my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path, 
+      $variables, $params) = @_;
+  # out $params
 
-  my @params = $xsl_node->getElementsByTagName("$Self->[XSL_NS]with-param");
-  foreach my $param (@params) {
+  my @_params = $xsl_node->getElementsByTagName("$Self->[XSL_NS]with-param");
+  foreach my $param (@_params) {
     my $varname = $param->getAttribute('name');
 
     if ($varname) {
-      if ($$oldvariables{$varname}) {
-	$$variables{$varname} = $$oldvariables{$varname};
-      } else {
-	my $value = $param->getAttribute('select');
-        
-	if (!$value) {
-	  # process content as template
-	  my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
+      my $value = $param->getAttribute('select');
+      
+      if (!$value) {
+	# process content as template
+	$value = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
-	  $Self->_evaluate_template ($param,
-				       $current_xml_node,
-				       $current_xml_selection_path,
-				       $result, $variables, $oldvariables);
-
-	  $Self->[INDENT] += $Self->[INDENT_INCR];
-	  $value = $Self->__string__ ($result);
-	  $Self->[INDENT] -= $Self->[INDENT_INCR];
-
-	  $result->dispose();
+	$Self->_evaluate_template ($param,
+				     $current_xml_node,
+				     $current_xml_selection_path,
+				     $value, $variables, {} );
 	}
 
-	$$variables{$varname} = $value;
-      }
+	$$params{$varname} = $value;
     } else {
       $Self->warn(q{Expected attribute "name" in <} .
 		  $Self->[XSL_NS] . q{with-param> !});
@@ -1855,7 +1867,8 @@ sub _call_template {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  my $newvariables = {()};
+  my $params={};
+  my $newvariables = {%$variables};
 
   my $name = $xsl_node->getAttribute('name');
   
@@ -1864,7 +1877,7 @@ sub _call_template {
 
     $Self->_process_with_params ($xsl_node, $current_xml_node,
 				   $current_xml_selection_path,
-				   $current_result_node, $variables, $oldvariables);
+				   $current_result_node, $variables, $params);
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
     my $template = $Self->_match_template ("name", $name, 0, '');
@@ -1872,7 +1885,7 @@ sub _call_template {
     if ($template) {
       $Self->_evaluate_template ($template, $current_xml_node,
 				   $current_xml_selection_path,
-				   $current_result_node, $variables, $oldvariables);
+				   $current_result_node, $newvariables, $params);
     } else {
       $Self->warn("no template named $name found!");
     }
@@ -2166,7 +2179,7 @@ sub _comment {
 
 sub _variable {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
-      $current_result_node, $variables, $oldvariables) = @_;
+      $current_result_node, $variables, $params, $is_param) = @_;
   
   my $varname = $xsl_node->getAttribute ('name');
   
@@ -2175,10 +2188,10 @@ sub _variable {
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
 
-    if ($$oldvariables{$varname}) {
+    if ( $is_param and exists $$params{$varname} ) {
       # copy from parent-template
 
-      $$variables{$varname} = $$oldvariables{$varname};
+      $$variables{$varname} = $$params{$varname};
 
     } else {
       # new variable definition
@@ -2193,7 +2206,7 @@ sub _variable {
 	$Self->_evaluate_template ($xsl_node,
 				   $current_xml_node,
 				   $current_xml_selection_path,
-				   $value, $variables, $oldvariables);
+				   $value, $variables, $params);
       }
 
       $$variables{$varname} = $value;
@@ -2642,11 +2655,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.21 $
+Revision: $Revision: 1.22 $
    Label: $Name:  $
 
 Last Chg: $Author: nejedly $ 
-      On: $Date: 2000/09/23 10:13:15 $
+      On: $Date: 2000/10/30 22:06:15 $
 
-  RCS ID: $Id: XSLT.pm,v 1.21 2000/09/23 10:13:15 nejedly Exp $
+  RCS ID: $Id: XSLT.pm,v 1.22 2000/10/30 22:06:15 nejedly Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
