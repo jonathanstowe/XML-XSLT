@@ -7,6 +7,12 @@
 #
 ###############################################################################
 
+=head1 NAME
+
+XML::XSLT - A perl module for processing XSLT
+
+=cut
+
 ######################################################################
 package XML::XSLT;
 ######################################################################
@@ -181,7 +187,6 @@ sub open_xml {
 
   $Self->[XML_BASE] =
     dirname(URI->new_abs($args{Source}, $Self->[XML_BASE])->as_string) . '/';
-
   $Self->[RESULT_DOCUMENT] = $Self->[XML_DOCUMENT]->createDocumentFragment;
 }
 
@@ -199,6 +204,7 @@ sub open_xsl {
   # open new document  # open new document
   $Self->debug("opening xsl...");
 
+$Self->debug("Base: " . $Self->[XML_BASE]);
   $args{parser_args} ||= {};
   $Self->[XSL_DOCUMENT] = $Self->__open_document (Source => $args{Source},
 						  base   => $Self->[XSL_BASE],
@@ -816,15 +822,19 @@ sub __open_document {
 	lc(substr($args{Source}, 0, 4)) eq 'ftp:' ||
 	lc(substr($args{Source}, 0, 5)) eq 'file:')) { 
 				# Filename
+      $Self->debug("Opening URL");
       $doc = $Self->__open_by_filename($args{Source}, $args{base});
     } elsif(!ref $args{Source}) {
 				# String
+      $Self->debug("Opening String");
       $doc = $Self->[PARSER]->parse ($args{Source});
     } elsif(ref $args{Source} eq "SCALAR") {
 				# Stringref
+      $Self->debug("Opening Stringref");
       $doc = $Self->[PARSER]->parse (${$args{Source}});
     } elsif(ref $args{Source} eq "XML::DOM::Document") {
 				# DOM object
+      $Self->debug("Opening XML::DOM");
       $doc = $args{Source};
     } else {
       $doc = undef;
@@ -845,10 +855,10 @@ sub __open_by_filename {
 
   # LWP should be able to deal with files as well as links
   $ENV{DOMAIN} ||= "example.com"; # hide complaints from Net::Domain
-  $filename = URI->new_abs($filename, $base)->as_string;
 
-  return $Self->[PARSER]->parsefile($filename, %{$Self->[PARSER_ARGS]});
-  die qq{Cannot open document from URL "$filename"$/};
+  my $file = get(URI->new_abs($filename, $base));
+
+  return $Self->[PARSER]->parse($file, %{$Self->[PARSER_ARGS]});
 }
 
 sub _match_template {
@@ -966,7 +976,7 @@ sub _evaluate_template {
 	       . qq{"$current_xml_selection_path": });
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  $template->normalize();
+  $template->normalize;
   foreach my $child ($template->getChildNodes) {
     my $ref = ref $child;
 
@@ -2115,11 +2125,6 @@ sub _variable {
 
 __END__
 
-
-=head1 NAME
-
-XML::XSLT - A perl module for processing XSLT
-
 =head1 SYNOPSIS
 
  use XML::XSLT;
@@ -2557,12 +2562,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.13 $
+Revision: $Revision: 1.14 $
    Label: $Name:  $
 
 Last Chg: $Author: hexmode $ 
-      On: $Date: 2000/07/14 01:26:42 $
+      On: $Date: 2000/07/27 07:17:54 $
 
-  RCS ID: $Id: XSLT.pm,v 1.13 2000/07/14 01:26:42 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.14 2000/07/27 07:17:54 hexmode Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
-
