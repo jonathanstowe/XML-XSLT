@@ -322,8 +322,7 @@ sub __preprocess_stylesheet {
   $Self->__expand_xsl_includes;
   $Self->__extract_top_level_variables;
 
-# ** FIXME: this doesn't seem right.
-#  $Self->__add_default_templates;
+  $Self->__add_default_templates;
   $Self->__cache_templates;	# speed optim
 
   $Self->__set_xsl_output;
@@ -476,33 +475,34 @@ sub __extract_top_level_variables {
 # private auxiliary function #
 sub __add_default_templates {
   my $Self = $_[0];
+  my $doc  = $Self->[TOP_XSL_NODE]->getOwnerDocument;
 
   # create template for '*' and '/'
   my $elem_template =
-    $Self->[XSL_DOCUMENT]->createElement
+    $doc->createElement
       ($Self->[XSL_NS] . "template");
   $elem_template->setAttribute('match','*|/');
 
   # <xsl:apply-templates />
   $elem_template->appendChild
-    ($Self->[XSL_DOCUMENT]->createElement
+    ($doc->createElement
      ($Self->[XSL_NS] . "apply-templates"));
 
   # create template for 'text()' and '@*'
   my $attr_template =
-    $Self->[XSL_DOCUMENT]->createElement
+    $doc->createElement
       ($Self->[XSL_NS] . "template");
   $attr_template->setAttribute('match','text()|@*');
 
   # <xsl:value-of select="." />
   $attr_template->appendChild
-    ($Self->[XSL_DOCUMENT]->createElement
+    ($doc->createElement
      ($Self->[XSL_NS] . "value-of"));
   $attr_template->getFirstChild->setAttribute('select','.');
 
   # create template for 'processing-instruction()' and 'comment()'
   my $pi_template =
-    $Self->[XSL_DOCUMENT]->createElement($Self->[XSL_NS] . "template");
+    $doc->createElement($Self->[XSL_NS] . "template");
   $pi_template->setAttribute('match','processing-instruction()|comment()');
 
   $Self->debug("adding default templates to stylesheet");
@@ -1380,11 +1380,11 @@ sub _value_of {
     $Self->debug("stripping node to text:");
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
-    my $text = undef;
+    my $text = '';
     $text = $Self->__string__ ($$xml_node[0]) if @$xml_node;
     $Self->[INDENT] -= $Self->[INDENT_INCR];
 
-    if (defined $text) {
+    if ($text ne '') {
       $Self->_add_node ($Self->[XML_DOCUMENT]->createTextNode($text), $current_result_node);
     } else {
       $Self->debug("nothing left..");
@@ -2078,7 +2078,7 @@ sub _text {
   my $text = $Self->__string__ ($xsl_node);
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 
-  if ($text) {
+  if ($text ne '') {
     $Self->_move_node ($Self->[XML_DOCUMENT]->createTextNode ($text), $current_result_node);
   } else {
     $Self->debug("nothing left..");
@@ -2623,11 +2623,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.17 $
+Revision: $Revision: 1.18 $
    Label: $Name:  $
 
-Last Chg: $Author: hexmode $ 
-      On: $Date: 2000/07/31 02:07:55 $
+Last Chg: $Author: nejedly $ 
+      On: $Date: 2000/08/10 13:38:00 $
 
-  RCS ID: $Id: XSLT.pm,v 1.17 2000/07/31 02:07:55 hexmode Exp $
+  RCS ID: $Id: XSLT.pm,v 1.18 2000/08/10 13:38:00 nejedly Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
