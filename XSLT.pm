@@ -5,7 +5,7 @@
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
 #
-# $Id: XSLT.pm,v 1.10 2000/07/13 23:08:48 hexmode Exp $
+# $Id: XSLT.pm,v 1.11 2000/07/13 23:18:07 hexmode Exp $
 #
 ################################################################################
 
@@ -15,25 +15,32 @@ package XML::XSLT;
 
 use strict;
 
+use XML::DOM 1.25;
+use LWP::Simple qw(get);
+use URI;
+use Cwd;
+use File::Basename qw(dirname);
+use Carp;
+
 # Namespace constants
 use constant NS_XSLT         => 'http://www.w3.org/1999/XSL/Transform';
 use constant NS_XHTML        => 'http://www.w3.org/TR/xhtml1/strict';
 
 # Offsets into the blessed arrayref
 use constant DEBUG             => 0;
-use constant DOM_PARSER        => 1;
-use constant DOM_PARSER_ARGS   => 2;
+use constant PARSER            => 1;
+use constant PARSER_ARGS       => 2;
 use constant VARIABLES         => 3;
 use constant WARNINGS          => 4;
 use constant INDENT            => 5;
 use constant INDENT_INCR       => 6;
 use constant USE_DEPRECATED    => 7;
-use constant XML_DOM           => 8;
-use constant XSL_DOM           => 9;
+use constant XML_DOCUMENT      => 8;
+use constant XSL_DOCUMENT      => 9;
 use constant XML_PASSED_AS_DOM => 10;
 use constant XSL_PASSED_AS_DOM => 11;
-use constant RESULT_DOM        => 12;
-use constant STYLESHEET_DOM    => 13;
+use constant RESULT_DOCUMENT   => 12;
+use constant TOP_XSL_NODE      => 13;
 use constant NAMESPACE         => 14;
 use constant XSL_NS            => 15;
 use constant TEMPLATE          => 16;
@@ -46,13 +53,10 @@ use constant MEDIA_TYPE        => 22;
 use constant OMIT_XML_DECL     => 23;
 use constant OUTPUT_VERSION    => 24;
 use constant OUTPUT_ENCODING   => 25;
+use constant BASENAME          => 26;
+use constant DEFAULT_NS        => 27;
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
-
-use LWP::Simple qw();
-use XML::DOM 1.25;
-use Carp;
-
 
 BEGIN {
 
@@ -77,15 +81,23 @@ sub new {
   my %args = $Self->__parse_args(@_);
 
   $Self->[DEBUG] = defined $args{debug} ? $args{debug} : "";
-  $Self->debug("creating parser object:");
+  $Self->[PARSER]      = XML::DOM::Parser->new;
+  $Self->[PARSER_ARGS] = defined $args{DOMparser_args}
+    ? $args{DOMparser_args} : {};
+  $Self->[VARIABLES]       = defined $args{variables}
+    ? $args{variables}      : {};
+  $Self->[WARNINGS]        = defined $args{warnings}
+    ? $args{warnings}       : 0;
+  $Self->[INDENT]          = defined $args{indent}
+    ? $args{indent}         : 0;
+  $Self->[INDENT_INCR]     = defined $args{indent_incr}
+    ? $args{indent_incr}    : 1;
+  $Self->[BASENAME]        = defined $args{base}
+    ? $args{base}    : 'file://' . cwd . '/';
+  $Self->[USE_DEPRECATED]  = defined $args{use_deprecated}
+    ? $args{use_deprecated} : 0;
 
-  $Self->[DOM_PARSER]      = XML::DOM::Parser->new;
-  $Self->[DOM_PARSER_ARGS] = defined $args{DOMparser_args} ? $args{DOMparser_args} : {};
-  $Self->[VARIABLES]       = defined $args{variables}      ? $args{variables}      : {};
-  $Self->[WARNINGS]        = defined $args{warnings}       ? $args{warnings}       : 0;
-  $Self->[INDENT]          = defined $args{indent}         ? $args{indent}         : 0;
-  $Self->[INDENT_INCR]     = defined $args{indent_incr}    ? $args{indent_incr}    : 1;
-  $Self->[USE_DEPRECATED]  = defined $args{use_deprecated} ? $args{use_deprecated} : 0;
+  $Self->debug("creating parser object:");
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
   $Self->open_xsl(%args);
@@ -93,6 +105,8 @@ sub new {
 
   return $Self;
 }
+
+sub DESTROY {}			# Cuts out random dies on includes
 
 sub debug {
   my $Self = shift;
@@ -107,7 +121,9 @@ sub warn {
   my $arg = shift || "";
 
   print STDERR " "x$Self->[INDENT],"$arg$/"
-    if $Self->[WARNINGS] || $Self->[DEBUG];
+    if $Self->[DEBUG];
+  print STDERR "$arg$/"
+    if $Self->[WARNINGS] || ! $Self->[DEBUG];
 }
 
 sub open_xml {
@@ -115,24 +131,24 @@ sub open_xml {
   my $class = ref $Self || croak "Not a method call";
   my %args = $Self->__parse_args(@_);
 
-  if(defined $Self->[XML_DOM] && not $Self->[XML_PASSED_AS_DOM]) {
+  if(defined $Self->[XML_DOCUMENT] && not $Self->[XML_PASSED_AS_DOM]) {
     $Self->debug("flushing old XML::DOM::Document object...");
-    $Self->[XML_DOM]->dispose;
+    $Self->[XML_DOCUMENT]->dispose;
   }
 
   $Self->[XML_PASSED_AS_DOM] = 1
     if ref $args{Source} eq 'XML::DOM::Document';
 
-  if (defined $Self->[RESULT_DOM]) {
+  if (defined $Self->[RESULT_DOCUMENT]) {
     $Self->debug("flushing result...");
-    $Self->[RESULT_DOM]->dispose ();
+    $Self->[RESULT_DOCUMENT]->dispose ();
   }
 
   $Self->debug("opening xml...");
 
-  $Self->[XML_DOM] = $Self->__open_document (%args);
+  $Self->[XML_DOCUMENT] = $Self->__open_document (%args);
 
-  $Self->[RESULT_DOM] = $Self->[XML_DOM]->createDocumentFragment;
+  $Self->[RESULT_DOCUMENT] = $Self->[XML_DOCUMENT]->createDocumentFragment;
 }
 
 sub open_xsl {
@@ -140,15 +156,17 @@ sub open_xsl {
   my $class = ref $Self || croak "Not a method call";
   my %args = $Self->__parse_args(@_);
 
-  $Self->[XSL_DOM]->dispose
-    if not $Self->[XSL_PASSED_AS_DOM] and defined $Self->[XSL_DOM];
+  $Self->[XSL_DOCUMENT]->dispose
+    if not $Self->[XSL_PASSED_AS_DOM] and defined $Self->[XSL_DOCUMENT];
 
   $Self->[XSL_PASSED_AS_DOM] = 1
     if ref $args{Source} eq 'XML::DOM::Document';
 
   # open new document  # open new document
   $Self->debug("opening xsl...");
-  $Self->[XSL_DOM] = $Self->__open_document (%args);
+  $Self->[XSL_DOCUMENT] = $Self->__open_document (%args);
+  $Self->[BASENAME] = 
+    dirname(URI->new_abs($args{Source}, $Self->[BASENAME])->as_string) . '/';
 
   $Self->__preprocess_stylesheet;
 }
@@ -194,13 +212,15 @@ sub __preprocess_stylesheet {
 
   $Self->debug("preprocessing stylesheet...");
 
+  $Self->[TOP_XSL_NODE] = $Self->[XSL_DOCUMENT]->getFirstChild;
   $Self->__extract_namespaces;
 #  $Self->__get_stylesheet;
 
   $Self->__expand_xsl_includes;
   $Self->__extract_top_level_variables;
 
-  $Self->__add_default_templates;
+# ** FIXME: this doesn't seem right.
+#  $Self->__add_default_templates;
   $Self->__cache_templates;	# speed optim
 
   $Self->__set_xsl_output;
@@ -235,74 +255,85 @@ sub __preprocess_stylesheet {
 #      $template->appendChild ($template_content);
 #    }
 
-#    $Self->[STYLESHEET_DOM] = $stylesheet;
+#    $Self->[XSL_DOCUMENT] = $stylesheet;
 #  }
 
 # private auxiliary function #
 sub __extract_namespaces {
-  my ($Self, $stylesheet) = @_;
+  my ($Self) = @_;
 
-  foreach my $attribute ($stylesheet->getAttributes->getValues) {
+  ($Self->[DEFAULT_NS], my $dump) =
+    split(':', $Self->[TOP_XSL_NODE]->getTagName);
+  $Self->[DEFAULT_NS] = '' if not defined $dump;
+  $Self->[DEFAULT_NS] &&=   $Self->[DEFAULT_NS] . ':';
+  $Self->debug("Default Namespace: `" . $Self->[DEFAULT_NS] . "'");
+
+  foreach my $attribute ($Self->[TOP_XSL_NODE]->getAttributes->getValues) {
     my ($pre, $post) = split(":", $attribute->getName, 2);
     my $value = $attribute->getValue;
 
     # Take care of namespaces
-    if($pre eq 'xmlns' and $post eq '') {
-      $Self->[NAMESPACE]->{_default}->{namespace} = $value;
-      $Self->[XSL_NS] = ''
+    if($pre eq 'xmlns' and not defined $post) {
+      $Self->[NAMESPACE]->{$Self->[DEFAULT_NS]}->{namespace} = $value;
+      $Self->[XSL_NS] = $Self->[DEFAULT_NS]
 	if $value eq NS_XSLT;
+      $Self->debug("Namespace `" . $Self->[DEFAULT_NS] . "' = `$value'");
     } elsif($pre eq 'xmlns') {
       $Self->[NAMESPACE]->{$post}->{namespace} = $value;
-      $Self->[XSL_NS] = $post
+      $Self->[XSL_NS] = $post . ':'
 	if $value eq NS_XSLT;
+      $Self->debug("Namespace `$post:' = `$value'");
     }
 
     # Take care of versions
-    if ($pre eq "version" and $post eq '') {
-      $Self->[NAMESPACE]->{_default}->{version} = $value;
+    if ($pre eq "version" and not defined $post) {
+      $Self->[NAMESPACE]->{$Self->[DEFAULT_NS]}->{version} = $value;
+      $Self->debug("Version for namespace `" . $Self->[DEFAULT_NS] .
+		   "' = `$value'");
     } elsif ($pre eq "version") {
       $Self->[NAMESPACE]->{$post}->{version} = $value;
+      $Self->debug("Version for namespace `$post:' = `$value'");
     }
   }
 
   # ** FIXME: is this right?
-  $Self->[NAMESPACE]->{_default}->{namespace} = NS_XHTML
-    unless exists $Self->[NAMESPACE]->{_default}->{namespace};
+  $Self->[NAMESPACE]->{$Self->[DEFAULT_NS]}->{namespace} ||= NS_XHTML;
 }
 
 # private auxiliary function #
 sub __expand_xsl_includes {
-  die "includes not implemented";
-#    my $Self = shift;
+  my $Self = shift;
 
-#    foreach my $include_node ($Self->[XSL_DOM]->getElementsByTagName($Self->[XSL_NS] . "include")) {
-#      my $include_file = $include_node->getAttribute('href');
+  foreach my $include_node
+    ($Self->[TOP_XSL_NODE]->getElementsByTagName($Self->[XSL_NS] . "include"))
+      {
+    my $include_file = $include_node->getAttribute('href');
 
-#      die "include tag carries no selection!"
-#        unless defined $include_file;
+    die "include tag carries no selection!"
+      unless defined $include_file;
 
-#      my $include_doc;
-#      eval {
-#        $include_doc = $Self->__open_by_filename($include_file);
-#      };
-#      die "inclusion of $include_file failed: $@"
-#        if $@;
+    my $include_doc;
+    eval {
+      $include_doc = $Self->[XSL_DOCUMENT]->createDocumentFragment;
+      my $doc =
+	$Self->[PARSER]->parse($Self->__open_by_filename($include_file),
+			       %{$Self->[PARSER_ARGS]});
+      $include_doc->appendChild($doc);
+    };
+    die "parsing of $include_file failed: $@"
+      if $@;
 
-#      $Self->__get_stylesheet ($include_doc);
-#      $Self->__extract_namespaces ($stylesheet, $ns);
-#      $Self->__expand_xsl_includes ($include_doc, $ns);
-
-#      foreach my $child ($stylesheet->getChildNodes) {
-#        $include_node->appendChild($child);
-#      }
-#    }
+    $Self->debug("inserting `$include_file'");
+    $Self->[TOP_XSL_NODE]->replaceChild($include_doc, $include_node);
+  }
 }
 
 # private auxiliary function #
 sub __extract_top_level_variables {
   my $Self = $_[0];
 
-  foreach my $child ($Self->[STYLESHEET_DOM]->getElementsByTagName ('*',0)) {
+  $Self->debug("Extracting variables");
+  foreach my $child ($Self->[TOP_XSL_NODE]->getElementsByTagName ('*',0)) {
     my ($ns, $tag) = split(':', $child);
 
     if(($tag eq '' && $Self->[XSL_NS] eq '') ||
@@ -315,11 +346,12 @@ sub __extract_top_level_variables {
 	if ($name) {
 	  my $value = $child->getAttribute("select");
 	  if (!$value) {
-	    my $result = $Self->[XML_DOM]->createDocumentFragment;
-	    $Self->_evaluate_template ($child, $Self->[XML_DOM], '', $result);
+	    my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
+	    $Self->_evaluate_template ($child, $Self->[XML_DOCUMENT], '', $result);
 	    $value = $Self->_string ($result);
 	    $result->dispose();
 	  }
+	  $Self->debug("Setting $tag `$name' = `$value'");
 	  $Self->[VARIABLES]->{$name} = $value;
 	} else {
 	  # Required, so we die (http://www.w3.org/TR/xslt#variables)
@@ -335,36 +367,48 @@ sub __add_default_templates {
   my $Self = $_[0];
 
   # create template for '*' and '/'
-  my $elem_template = $Self->[XSL_DOM]->createElement ("$Self->[XSL_NS]template");
+  my $elem_template =
+    $Self->[XSL_DOCUMENT]->createElement
+      ($Self->[XSL_NS] . "template");
   $elem_template->setAttribute('match','*|/');
 
   # <xsl:apply-templates />
-  $elem_template->appendChild ($Self->[XSL_DOM]->createElement ("$Self->[XSL_NS]apply-templates"));
+  $elem_template->appendChild
+    ($Self->[XSL_DOCUMENT]->createElement
+     ($Self->[XSL_NS] . "apply-templates"));
 
   # create template for 'text()' and '@*'
-  my $attr_template = $Self->[XSL_DOM]->createElement ("$Self->[XSL_NS]template");
+  my $attr_template =
+    $Self->[XSL_DOCUMENT]->createElement
+      ($Self->[XSL_NS] . "template");
   $attr_template->setAttribute('match','text()|@*');
 
   # <xsl:value-of select="." />
-  $attr_template->appendChild ($Self->[XSL_DOM]->createElement ("$Self->[XSL_NS]value-of"));
+  $attr_template->appendChild
+    ($Self->[XSL_DOCUMENT]->createElement
+     ($Self->[XSL_NS] . "value-of"));
   $attr_template->getFirstChild->setAttribute('select','.');
 
   # create template for 'processing-instruction()' and 'comment()'
-  my $pi_template = $Self->[XSL_DOM]->createElement ("$Self->[XSL_NS]template");
+  my $pi_template =
+    $Self->[XSL_DOCUMENT]->createElement($Self->[XSL_NS] . "template");
   $pi_template->setAttribute('match','processing-instruction()|comment()');
 
+  $Self->debug("adding default templates to stylesheet");
   # add them to the stylesheet
-  my $first_child = $Self->[STYLESHEET_DOM]->getFirstChild ();
-  $Self->[STYLESHEET_DOM]->insertBefore ($pi_template, $first_child);
-  $Self->[STYLESHEET_DOM]->insertBefore ($attr_template, $first_child);
-  $Self->[STYLESHEET_DOM]->insertBefore ($elem_template, $first_child);
+  $Self->[XSL_DOCUMENT]->insertBefore($pi_template,
+				 $Self->[TOP_XSL_NODE]);
+  $Self->[XSL_DOCUMENT]->insertBefore($attr_template,
+				 $Self->[TOP_XSL_NODE]);
+  $Self->[XSL_DOCUMENT]->insertBefore($elem_template,
+				 $Self->[TOP_XSL_NODE]);
 }
 
 # private auxiliary function #
 sub __cache_templates {
   my $Self = $_[0];
 
-  $Self->[TEMPLATE] = [$Self->[XSL_DOM]->getElementsByTagName ("$Self->[XSL_NS]template")];
+  $Self->[TEMPLATE] = [$Self->[XSL_DOCUMENT]->getElementsByTagName ("$Self->[XSL_NS]template")];
 
   # pre-cache template names and matches #
   # reversing the template order is much more efficient #
@@ -401,7 +445,8 @@ sub __set_xsl_output {
   $Self->[OMIT_XML_DECL] = 'yes';
 
   # extraction of top-level xsl:output tag
-  my ($output) = $Self->[STYLESHEET_DOM]->getElementsByTagName("$Self->[XSL_NS]output",0);
+  my ($output) = 
+    $Self->[XSL_DOCUMENT]->getElementsByTagName("$Self->[XSL_NS]output",0);
 
   if ($output) {
     # extraction and processing of the attributes
@@ -477,9 +522,9 @@ sub transform {
 
   $Self->_evaluate_template (
 			       $root_template, # starting template: the root template
-			       $Self->[XML_DOM], # current XML node: the root
+			       $Self->[XML_DOCUMENT], # current XML node: the root
 			       '', # current XML selection path: the root
-			       $Self->[RESULT_DOM], # current result tree node: the root
+			       $Self->[RESULT_DOCUMENT], # current result tree node: the root
 			       {
 				()}, # current known variables: none
 			       \%topvariables # previously known variables: top level variables
@@ -501,9 +546,9 @@ sub process {
 
   $Self->_evaluate_template (
 			       $root_template, # starting template: the root template
-			       $Self->[XML_DOM], # current XML node: the root
+			       $Self->[XML_DOCUMENT], # current XML node: the root
 			       '', # current XML selection path: the root
-			       $Self->[RESULT_DOM], # current result tree node: the root
+			       $Self->[RESULT_DOCUMENT], # current result tree node: the root
 			       {
 				()}, # current known variables: none
 			       \%topvariables # previously known variables: top level variables
@@ -559,7 +604,7 @@ sub toString {
 
   local *XML::DOM::Text::print = \&_my_print_text;
 
-  my $string = $Self->[RESULT_DOM]->toString;
+  my $string = $Self->[RESULT_DOCUMENT]->toString;
   #  $string =~ s/\n\s*\n(\s*)\n/\n$1\n/g;  # Substitute multiple empty lines by one
   #  $string =~ s/\/\>/ \/\>/g;            # Insert a space before every />
 
@@ -575,7 +620,7 @@ sub toString {
 sub to_dom {
   my $Self = shift;
 
-  return $Self->[RESULT_DOM];
+  return $Self->[RESULT_DOCUMENT];
 }
 
 sub media_type {
@@ -589,8 +634,8 @@ sub print_output {
 
   # print mime-type header etc by default
 
-  #  $Self->[RESULT_DOM]->printToFileHandle (\*STDOUT);
-  #  or $Self->[RESULT_DOM]->print (\*STDOUT); ???
+  #  $Self->[RESULT_DOCUMENT]->printToFileHandle (\*STDOUT);
+  #  or $Self->[RESULT_DOCUMENT]->print (\*STDOUT); ???
   #  exit;
 
   carp "print_output is deprecated.  Use serve."
@@ -608,7 +653,7 @@ sub print_output {
       }
     }
     if ($Self->[DOCTYPE_SYSTEM]) {
-      my $root_name = $Self->[RESULT_DOM]->getElementsByTagName('*',0)->item(0)->getTagName;
+      my $root_name = $Self->[RESULT_DOCUMENT]->getElementsByTagName('*',0)->item(0)->getTagName;
       if ($Self->[DOCTYPE_PUBLIC]) {
 	print qq{<!DOCTYPE $root_name PUBLIC "} . $Self->[DOCTYPE_PUBLIC] .
 	  qq{" "} . $Self->[DOCTYPE_SYSTEM] . qq{">\n};
@@ -640,15 +685,15 @@ sub print_output {
 sub dispose {
   #my $Self = $_[0];
 
-  #$_[0]->[DOM_PARSER] = undef if (defined $_[0]->[DOM_PARSER]);
-  $_[0]->[RESULT_DOM]->dispose ()    if (defined $_[0]->[RESULT_DOM]);
+  #$_[0]->[PARSER] = undef if (defined $_[0]->[PARSER]);
+  $_[0]->[RESULT_DOCUMENT]->dispose ()    if (defined $_[0]->[RESULT_DOCUMENT]);
 
   # only dispose xml and xsl when they were not passed as DOM
-  if (not defined $_[0]->[XML_PASSED_AS_DOM] && defined $_-[0]->[XML_DOM]) {
-    $_[0]->[XML_DOM]->dispose;
+  if (not defined $_[0]->[XML_PASSED_AS_DOM] && defined $_-[0]->[XML_DOCUMENT]) {
+    $_[0]->[XML_DOCUMENT]->dispose;
   }
-  if (not defined $_[0]->[XSL_PASSED_AS_DOM] && defined $_-[0]->[XSL_DOM]) {
-    $_[0]->[XSL_DOM]->dispose;
+  if (not defined $_[0]->[XSL_PASSED_AS_DOM] && defined $_-[0]->[XSL_DOCUMENT]) {
+    $_[0]->[XSL_DOCUMENT]->dispose;
   }
 
   $_[0] = undef;
@@ -658,53 +703,58 @@ sub dispose {
 ######################################################################
 # PRIVATE DEFINITIONS
 
-
 sub __open_document {
   my $Self = shift;
   my %args = @_;
-  %args = (%{$Self->[DOM_PARSER_ARGS]}, %args);
+  %args = (%{$Self->[PARSER_ARGS]}, %args);
   my $doc;
 
   $Self->debug("opening document");
 
-  print map{"$_ => $args{$_}\n"} keys %args;
-  if(length $args{Source} < 255 &&
-     (-f $args{Source} ||
-      lc(substr($args{Source}, 0, 5)) eq 'http:' ||
-      lc(substr($args{Source}, 0, 6)) eq 'https:' ||
-      lc(substr($args{Source}, 0, 4)) eq 'ftp:' ||
-      lc(substr($args{Source}, 0, 5)) eq 'file:')) { # Filename
-    use URI::Heuristic;
-    $args{Source} = URI::Heuristic::uf_uristr($args{Source});
-    $doc = $Self->__open_by_filename($args{Source});
-  } elsif(!ref $args{Source}) {   # String
-    $doc = $Self->[DOM_PARSER]->parse ($args{Source})
-  } elsif(ref $args{Source} eq "SCALAR") {   # Stringref
-    $doc = $Self->[DOM_PARSER]->parse ($args{Source});
-  } elsif(ref $args{Source} eq "XML::DOM::Document") {  # DOM object
-    $doc = $args{Source};
-  } else {
-    $doc = undef;
-  }
+  eval {
+    if(length $args{Source} < 255 &&
+       (-f $args{Source} ||
+	lc(substr($args{Source}, 0, 5)) eq 'http:' ||
+	lc(substr($args{Source}, 0, 6)) eq 'https:' ||
+	lc(substr($args{Source}, 0, 4)) eq 'ftp:' ||
+	lc(substr($args{Source}, 0, 5)) eq 'file:')) { 
+				# Filename
+      $doc = $Self->[PARSER]->parse($Self->__open_by_filename($args{Source}),
+				    %{$Self->[PARSER_ARGS]});
+    } elsif(!ref $args{Source}) {
+				# String
+      $doc = $Self->[PARSER]->parse ($args{Source});
+    } elsif(ref $args{Source} eq "SCALAR") {
+				# Stringref
+      $doc = $Self->[PARSER]->parse (${$args{Source}});
+    } elsif(ref $args{Source} eq "XML::DOM::Document") {
+				# DOM object
+      $doc = $args{Source};
+    } else {
+      $doc = undef;
+    }
+  };
+  die "Error in parsing: $@" if $@;
 
   return $doc;
 }
 
 # private auxiliary function #
 sub __open_by_filename {
-  my ($Self, $filename, $dir, %args) = @_;
+  my ($Self, $filename) = @_;
   my $doc;
 
+  # ** FIXME: currently reads the whole document into memory
+  #           might not be avoidable
+
   # LWP should be able to deal with files as well as links
-  my $result = LWP::Simple->get($filename);
+  $ENV{DOMAIN} ||= "example.com"; # hide complaints from Net::Domain
+  $filename = URI->new_abs($filename, $Self->[BASENAME])->as_string;
+  my $result = get($filename);
 
-  if (defined $result) {
-    $doc = $Self->[DOM_PARSER]->parse ($result->content, %args);
-  } else {
-    die qq{Cannot open document from URL "$filename"$/};
-  }
-
-  return $doc;
+  return $result
+    if defined $result;
+  die qq{Cannot open document from URL "$filename"$/};
 }
 
 sub _match_template {
@@ -818,7 +868,8 @@ sub _evaluate_template {
   my ($Self, $template, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
 
-  print " "x$Self->[INDENT],"evaluating template content with current path \"$current_xml_selection_path\": $/" if $Self->[DEBUG];
+  $Self->debug(qq{evaluating template content with current path }
+	       . qq{"$current_xml_selection_path": });
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
   $template->normalize();
@@ -830,13 +881,14 @@ sub _evaluate_template {
     my $node_type = $child->getNodeType;
     if ($node_type == ELEMENT_NODE) {
       $Self->_evaluate_element ($child, $current_xml_node,
-				  $current_xml_selection_path,
-				  $current_result_node, $variables, $oldvariables);
+				$current_xml_selection_path,
+				$current_result_node, $variables,
+				$oldvariables);
     } elsif ($node_type == TEXT_NODE) {
       # strip whitespace here?
       $Self->_add_node ($child, $current_result_node);
     } elsif ($node_type == CDATA_SECTION_NODE) {
-      my $text = $Self->[XML_DOM]->createTextNode ($child->getData);
+      my $text = $Self->[XML_DOCUMENT]->createTextNode ($child->getData);
       $Self->_add_node($text, $current_result_node);
 
 #      $current_result_node->getLastChild->{_disable_output_escaping} = 1;
@@ -864,7 +916,7 @@ sub _evaluate_template {
 sub _add_node {
   my ($Self, $node, $parent, $deep, $owner) = @_;
   $deep ||= "";			# False #
-  $owner ||= $Self->[XML_DOM];
+  $owner ||= $Self->[XML_DOCUMENT];
 
   print " "x$Self->[INDENT],"adding node (deep)..$/" if $Self->[DEBUG] && $deep;
   print " "x$Self->[INDENT],"adding node (non-deep)..$/" if $Self->[DEBUG] && !$deep;
@@ -895,7 +947,7 @@ sub _apply_templates {
 
   if ($select) {
     $Self->debug(qq{applying templates on children $select of "$current_xml_selection_path":});
-    $children = $Self->_get_node_set ($select, $Self->[XML_DOM],
+    $children = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
   } else {
@@ -977,7 +1029,7 @@ sub _for_each {
   
   if ($select) {
     print " "x$Self->[INDENT],"applying template for each child $select of \"$current_xml_selection_path\":$/" if $Self->[DEBUG];
-    my $children = $Self->_get_node_set ($select, $Self->[XML_DOM],
+    my $children = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					   $current_xml_selection_path,
 					   $current_xml_node, $variables);
     $Self->[INDENT] += $Self->[INDENT_INCR];
@@ -1161,7 +1213,7 @@ sub _value_of {
 
   if ($select) {
   
-    $xml_node = $Self->_get_node_set ($select, $Self->[XML_DOM],
+    $xml_node = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
 
@@ -1173,7 +1225,7 @@ sub _value_of {
     $Self->[INDENT] -= $Self->[INDENT_INCR];
 
     if ($text) {
-      $Self->_add_node ($Self->[XML_DOM]->createTextNode($text), $current_result_node);
+      $Self->_add_node ($Self->[XML_DOCUMENT]->createTextNode($text), $current_result_node);
     } else {
       $Self->debug("nothing left..");
     }
@@ -1282,7 +1334,7 @@ sub _get_node_set {
 	return [$$variables{$varname}->getChildNodes];
       } else {
 	# string or number?
-	return [$Self->[XML_DOM]->createTextNode ($$variables{$varname})];
+	return [$Self->[XML_DOCUMENT]->createTextNode ($$variables{$varname})];
       }
     } else {
       # var does not exist
@@ -1304,7 +1356,8 @@ sub _get_node_set {
 	$Self->warn("Ignoring second argument of $path");
       }
 
-      ($root_node) = $Self->__open_by_filename ($Self, $filename, $Self->{xsl_dir});
+      ($root_node) = $Self->[PARSER]->parse
+	($Self->__open_by_filename ($filename), %{$Self->[PARSER_ARGS]});
     }
 
     if ($path =~ /^\//) {
@@ -1539,7 +1592,7 @@ sub _attribute_value_of {
     $value =~ s/(\*|\?|\+)/\\$1/g;
     study ($value);
     while ($value =~ /\G[^\\]?\{(.*?[^\\]?)\}/) {
-      my $node = $Self->_get_node_set ($1, $Self->[XML_DOM],
+      my $node = $Self->_get_node_set ($1, $Self->[XML_DOCUMENT],
 					 $current_xml_selection_path,
 					 $current_xml_node, $variables);
       if (@$node) {
@@ -1568,7 +1621,7 @@ sub _processing_instruction {
     $Self->warn("declaration. Use <" . $Self->[XSL_NS] . "output> instead...");
   } elsif ($new_PI_name) {
     my $text = $Self->__string__ ($xsl_node);
-    my $new_PI = $Self->[XML_DOM]->createProcessingInstruction($new_PI_name, $text);
+    my $new_PI = $Self->[XML_DOCUMENT]->createProcessingInstruction($new_PI_name, $text);
 
     if ($new_PI) {
       $Self->_move_node ($new_PI, $current_result_node);
@@ -1595,7 +1648,7 @@ sub _process_with_params {
         
 	if (!$value) {
 	  # process content as template
-	  my $result = $Self->[XML_DOM]->createDocumentFragment;
+	  my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
 	  $Self->_evaluate_template ($param,
 				       $current_xml_node,
@@ -1733,7 +1786,7 @@ sub _evaluate_test {
     print " "x$Self->[INDENT],"evaluating test $test at path $path:$/" if $Self->[DEBUG];
 
     $Self->[INDENT] += $Self->[INDENT_INCR];
-    my $node = $Self->_get_node_set ($path, $Self->[XML_DOM],
+    my $node = $Self->_get_node_set ($path, $Self->[XML_DOCUMENT],
 				       $current_xml_selection_path,
 				       $current_xml_node, $variables);
     if (@$node) {
@@ -1744,7 +1797,7 @@ sub _evaluate_test {
     $Self->[INDENT] -= $Self->[INDENT_INCR];
   } else {
     print " "x$Self->[INDENT],"evaluating path or test $test:$/" if $Self->[DEBUG];
-    my $node = $Self->_get_node_set ($test, $Self->[XML_DOM],
+    my $node = $Self->_get_node_set ($test, $Self->[XML_DOCUMENT],
 				       $current_xml_selection_path,
 				       $current_xml_node, $variables, "silent");
     $Self->[INDENT] += $Self->[INDENT_INCR];
@@ -1801,7 +1854,7 @@ sub _copy_of {
   
   $Self->[INDENT] += $Self->[INDENT_INCR];
   if ($select) {
-    $nodelist = $Self->_get_node_set ($select, $Self->[XML_DOM],
+    $nodelist = $Self->_get_node_set ($select, $Self->[XML_DOCUMENT],
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
   } else {
@@ -1849,20 +1902,20 @@ sub _text {
   #Return Value: the last child if it was a Text node or else the new Text node.
   my ($Self, $xsl_node, $current_result_node) = @_;
 
-  print " "x$Self->[INDENT],"inserting text:$/" if $Self->[DEBUG];
+  $Self->debug("inserting text:");
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  print " "x$Self->[INDENT],"stripping node to text:$/" if $Self->[DEBUG];
+  $Self->debug("stripping node to text:");
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
   my $text = $Self->__string__ ($xsl_node);
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 
   if ($text) {
-    $Self->_move_node ($Self->[XML_DOM]->createTextNode ($text), $current_result_node);
+    $Self->_move_node ($Self->[XML_DOCUMENT]->createTextNode ($text), $current_result_node);
   } else {
-    print " "x$Self->[INDENT],"nothing left..$/" if $Self->[DEBUG];
+    $Self->debug("nothing left..");
   }
 
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1877,7 +1930,7 @@ sub _attribute {
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
   if ($name) {
-    my $result = $Self->[XML_DOM]->createDocumentFragment;
+    my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
     $Self->_evaluate_template ($xsl_node,
 				 $current_xml_node,
@@ -1900,12 +1953,12 @@ sub _attribute {
 sub _comment {
   my ($Self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
-  
-  print " "x$Self->[INDENT],"inserting comment:$/" if $Self->[DEBUG];
+
+  $Self->debug("inserting comment:");
 
   $Self->[INDENT] += $Self->[INDENT_INCR];
 
-  my $result = $Self->[XML_DOM]->createDocumentFragment;
+  my $result = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
   $Self->_evaluate_template ($xsl_node,
 			       $current_xml_node,
@@ -1916,7 +1969,7 @@ sub _comment {
   my $text = $Self->__string__ ($result);
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 
-  $Self->_move_node ($Self->[XML_DOM]->createComment ($text), $current_result_node);
+  $Self->_move_node ($Self->[XML_DOCUMENT]->createComment ($text), $current_result_node);
   $result->dispose();
 
   $Self->[INDENT] -= $Self->[INDENT_INCR];
@@ -1946,12 +1999,12 @@ sub _variable {
       if (! $value) {
 	#tough case, evaluate content as template
 
-	$value = $Self->[XML_DOM]->createDocumentFragment;
+	$value = $Self->[XML_DOCUMENT]->createDocumentFragment;
 
 	$Self->_evaluate_template ($xsl_node,
-				     $current_xml_node,
-				     $current_xml_selection_path,
-				     $value, $variables, $oldvariables);
+				   $current_xml_node,
+				   $current_xml_selection_path,
+				   $value, $variables, $oldvariables);
       }
 
       $$variables{$varname} = $value;
@@ -1992,7 +2045,7 @@ implementation of this spec, but we have not yet achieved
 that. However, it already works well.  See L<XML::XSLT Commands> for
 the current status of each command.
 
-XML::XSLT makes use of XML::DOM and LWP::UserAgent, while XML::DOM
+XML::XSLT makes use of XML::DOM and LWP::Simple, while XML::DOM
 uses XML::Parser.  Therefore XML::Parser, XML::DOM and LWP::Simple
 have to be installed properly for XML::XSLT to run.
 
@@ -2027,6 +2080,10 @@ method.
 =item variables
 
 Hashref of variables and their values for the stylesheet.
+
+=item base
+
+Base of URL for file inclusion.
 
 =item debug
 
