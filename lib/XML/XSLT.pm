@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.28  2004/06/02 07:48:34  gellyfish
+#    Fixed the check if $args{Source} is an 'XML::DOM::Document' from John
+#    Bywater.
+#
 #    Revision 1.27  2004/04/02 10:48:35  gellyfish
 #    Fixing disposal bug
 #
@@ -339,8 +343,10 @@ sub open_xml
         $self->xml_document()->dispose;
     }
 
-    $self->{XML_PASSED_AS_DOM} = 1
-      if ref $args{Source} eq 'XML::DOM::Document';
+    if (ref $args{Source} && UNIVERSAL::isa($args{Source}, 'XML::DOM::Document' ) )
+    {
+       $self->{XML_PASSED_AS_DOM} = 1;
+    }
 
     if ( defined $self->result_document() )
     {
@@ -388,8 +394,10 @@ sub open_xsl
       if not $self->{XSL_PASSED_AS_DOM}
       and defined $self->xsl_document();
 
-    $self->{XSL_PASSED_AS_DOM} = 1
-      if ref $args{Source} eq 'XML::DOM::Document';
+    if ( ref $args{Source} && UNIVERSAL::isa($args{Source}, 'XML::DOM::Document' ))
+    {
+       $self->{XSL_PASSED_AS_DOM} = 1
+    }  
 
     # open new document  # open new document
     $self->debug("opening xsl...");
@@ -612,7 +620,8 @@ sub __get_first_element
     my ($self) = @_;
     my $node = $self->xsl_document()->getFirstChild();
 
-    $node = $node->getNextSibling until ref $node eq 'XML::DOM::Element';
+    $node = $node->getNextSibling until $node->isa( 'XML::DOM::Element' );
+	
     $self->top_xsl_node($node);
 }
 
@@ -1503,7 +1512,7 @@ sub __open_document
             $self->debug("Opening Stringref");
             $doc = $self->{PARSER}->parse( ${ $args{Source} } );
         }
-        elsif ( $ref eq "XML::DOM::Document" )
+        elsif ( $args{Source}->isa( 'XML::DOM::Document' ) )
         {
 
             # DOM object
@@ -4115,11 +4124,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.27 $
+Revision: $Revision: 1.28 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/04/02 10:48:35 $
+      On: $Date: 2004/06/02 07:48:34 $
 
-  RCS ID: $Id: XSLT.pm,v 1.27 2004/04/02 10:48:35 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.28 2004/06/02 07:48:34 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
