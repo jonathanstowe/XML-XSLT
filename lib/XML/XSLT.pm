@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.15  2002/01/08 10:11:47  gellyfish
+#    * First cut at cdata-section-element
+#    * test for above
+#
 #    Revision 1.14  2001/12/24 16:00:19  gellyfish
 #    * Version released to CPAN
 #
@@ -773,10 +777,63 @@ sub __set_xsl_output {
 
     my $ds = defined $doctype_system ?  $doctype_system->getNodeValue : '';
     $self->doctype_system($ds);
+
+    # cdata-section-elements should only be used if the output type
+    # is XML but as we are not checking that right now ...
+
+    my $cdata_section = $attribs->getNamedItem('cdata-section-elements');
+
+    if ( defined $cdata_section ) 
+    {
+       my $cdata_sections = [];
+       @{$cdata_sections} = split /\s+/, $cdata_section->getNodeValue();        
+       $self->cdata_sections($cdata_sections);
+    }
   } else {
     $self->debug("Default Output options being used");
   }
 }
+
+sub cdata_sections
+{
+   my ( $self, $cdata_sections ) = @_;
+
+   if ( defined $cdata_sections )
+   {
+      $self->{CDATA_SECTIONS} = $cdata_sections;
+   }
+
+   $self->{CDATA_SECTIONS} = [] unless exists $self->{CDATA_SECTIONS};
+
+   return wantarray() ? @{$self->{CDATA_SECTIONS}} : $self->{CDATA_SECTIONS};
+}
+
+
+sub is_cdata_section
+{
+    my ( $self, $element ) = @_;
+
+    my %cdata_sections;
+
+    my @cdata_temp = $self->cdata_sections();
+    @cdata_sections{@cdata_temp} = (1) x @cdata_temp;
+
+    my $tagname;
+
+    if ( defined $element and ref($element) and ref($element) eq 'XML::DOM' )
+    {
+       $tagname = $element->getTagName();
+    }
+    else
+    {
+       $tagname = $element;
+    }
+
+    # Will need to do namespace checking on this really
+
+    return exists $cdata_sections{$tagname} ? 1 : 0;
+}
+
 
 sub output_version
 {
@@ -1639,6 +1696,10 @@ sub _evaluate_element {
       $self->_sort ($xsl_node, $current_xml_node,
                     $current_xml_selection_path,
                     $current_result_node, $variables, $oldvariables, 0);
+    } elsif ( $xsl_tag eq 'fallback' ) { 
+      $self->_fallback ($xsl_node, $current_xml_node,
+                    $current_xml_selection_path,
+                    $current_result_node, $variables, $oldvariables, 0);
     } elsif ( $xsl_tag eq 'attribute-set' ) { 
       $self->_attribute_set ($xsl_node, $current_xml_node,
                              $current_xml_selection_path,
@@ -1651,12 +1712,55 @@ sub _evaluate_element {
     }
   } else {
     $self->debug($ns ." does not match ". $self->xsl_ns());
-    $self->_check_attributes_and_recurse ($xsl_node, $current_xml_node,
+
+    # not entirely sure if this right but the spec is a bit vague
+
+    if ( $self->is_cdata_section($xsl_tag) )
+    {
+       $self->debug("This is a CDATA section element");
+       $self->_add_cdata_section($xsl_node, $current_xml_node,
+                                            $current_xml_selection_path,
+                                            $current_result_node, $variables, 
+                                            $oldvariables);
+    }
+    else
+    {
+       $self->debug("This is a literal element");
+       $self->_check_attributes_and_recurse ($xsl_node, $current_xml_node,
 					    $current_xml_selection_path,
-					    $current_result_node, $variables, $oldvariables);
+					    $current_result_node, $variables, 
+                                            $oldvariables);
+    }
   }
 
   $self->_outdent();
+}
+
+sub _add_cdata_section
+{
+  my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $current_result_node, $variables, $oldvariables) = @_;
+
+  my $node = $self->xml_document()->createElement($xsl_node->getTagName);
+
+  my $cdata = '';
+
+  foreach my $child_node ( $xsl_node->getChildNodes() )
+  {
+    if ($child_node->can('asString') )
+    {
+      $cdata .= $child_node->asString();
+    }
+    else
+    {
+      $cdata .= $child_node->getNodeValue();
+    }
+  }
+
+  $node->addCDATA($cdata);
+
+  $current_result_node->appendChild($node);
+
 }
 
 sub _add_and_recurse {
@@ -1749,6 +1853,10 @@ sub _value_of {
       $current_result_node, $variables) = @_;
 
   my $select = $xsl_node->getAttribute('select');
+
+  # Need to determine here whether the value is an XPath expression
+  # and act accordingly
+
   my $xml_node;
 
   if (defined $select) {
@@ -1760,7 +1868,7 @@ sub _value_of {
 
     $self->_indent();
     my $text = '';
-    $text = $self->__string__ ($$xml_node[0]) if @$xml_node;
+    $text = $self->__string__ ($xml_node->[0]) if @{$xml_node};
     $self->_outdent();
 
     if ($text ne '') {
@@ -2606,6 +2714,17 @@ sub _sort
   $self->debug("dummy process for sort");
 }
 
+# Not quite sure how fallback should be implemented as the spec seems a
+# little vague to me
+
+sub _fallback
+{
+  my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $current_result_node, $variables, $params, $is_param) = @_;
+  
+  $self->debug("dummy process for fallback");
+}
+
 # This is a no-op - attribute-sets should not appear within templates and
 # we have already processed the stylesheet wide ones.
 
@@ -3088,11 +3207,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.14 $
+Revision: $Revision: 1.15 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/24 16:00:19 $
+      On: $Date: 2002/01/08 10:11:47 $
 
-  RCS ID: $Id: XSLT.pm,v 1.14 2001/12/24 16:00:19 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.15 2002/01/08 10:11:47 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

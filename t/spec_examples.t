@@ -1,5 +1,5 @@
 # The examples from the 1.1 Working Draft
-# $Id: spec_examples.t,v 1.1 2001/12/17 11:32:09 gellyfish Exp $
+# $Id: spec_examples.t,v 1.2 2002/01/08 10:11:47 gellyfish Exp $
 
 use Test::More tests => 8;
 
@@ -166,17 +166,22 @@ eval
    die unless $parser;
 };
 
-print $@;
+warn $@ if $DEBUGGING;
+
 ok(!$@,'Can parse example stylesheet');
 
 my $outstr;
 eval
 {
    $outstr = $parser->serve(\$xml,http_headers => 0);
-   die unless $outstr;
+   die "no output" unless $outstr;
 };
 
+warn $@ if $DEBUGGING;
+
 ok(!$@,'serve produced output');
+
+print $outstr;
 
 ok($outstr eq $expected,'Matches output');
 

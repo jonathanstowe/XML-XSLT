@@ -44,3 +44,6 @@ t/forward.t
 t/features.t
 t/attributes.t
 t/comment.t
+t/call_template.t
+t/cdata_sect.t
+
