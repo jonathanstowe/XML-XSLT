@@ -1,5 +1,5 @@
 # Test that attributes work
-# $Id: attributes.t,v 1.1 2001/12/17 11:32:08 gellyfish Exp $
+# $Id: attributes.t,v 1.2 2001/12/18 09:10:10 gellyfish Exp $
 
 use Test::More tests => 3;
 
@@ -65,7 +65,7 @@ eval
     <xsl:element name="p" use-attribute-sets="outer-table">
        <xsl:text>Foo</xsl:text>
     </xsl:element>
-  </xsl:template>
+</xsl:template>
 </xsl:transform>
 EOS
 
@@ -86,8 +86,10 @@ EOX
     <p summary="This is a summary">
        Foo
     </p>
-  </doc>
+</doc>
 EOE
+
+  chomp($expected);
 
   warn "$outstr\n" if $DEBUGGING;
   die "$outstr ne $expected\n" unless $outstr eq $expected;
@@ -95,8 +97,4 @@ EOE
 
 warn "$@\n" if $DEBUGGING;
 
-SKIP:
-{
-   skip("attribute-set doesn't work yet",1);
-   ok(!$@, "attribute-set in element");
-}
+ok(!$@, "attribute-set in element");

@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.10  2001/12/18 09:10:10  gellyfish
+#    Implemented attribute-sets
+#
 #    Revision 1.9  2001/12/17 22:32:12  gellyfish
 #    * Added Test::More to Makefile.PL
 #    * Added _indent and _outdent methods
@@ -171,7 +174,7 @@ sub open_xml {
   my $class = ref $self || croak "Not a method call";
   my %args = $self->__parse_args(@_);
 
-  if(defined $self->{XML_DOCUMENT} && not $self->{XML_PASSED_AS_DOM}) {
+  if(defined $self->xml_document() && not $self->{XML_PASSED_AS_DOM}) {
     $self->debug("flushing old XML::DOM::Document object...");
     $self->{XML_DOCUMENT}->dispose;
   }
@@ -187,16 +190,31 @@ sub open_xml {
   $self->debug("opening xml...");
 
   $args{parser_args} ||= {};
-  $self->{XML_DOCUMENT} = $self->__open_document (Source => $args{Source},
+  
+  my $xml_document      = $self->__open_document (Source => $args{Source},
 						  base   => $self->{XML_BASE},
 						  parser_args =>
 						  {%{$self->{PARSER_ARGS}},
 						   %{$args{parser_args}}},
 						 );
 
+  $self->xml_document($xml_document);
+
   $self->{XML_BASE} =
     dirname(URI->new_abs($args{Source}, $self->{XML_BASE})->as_string) . '/';
-  $self->{RESULT_DOCUMENT} = $self->{XML_DOCUMENT}->createDocumentFragment;
+  $self->{RESULT_DOCUMENT} = $self->xml_document()->createDocumentFragment;
+}
+
+sub xml_document
+{
+   my ( $self, $xml_document ) = @_;
+
+   if ( defined $xml_document )
+   {
+      $self->{XML_DOCUMENT} = $xml_document;
+   }
+
+   return $self->{XML_DOCUMENT};
 }
 
 sub open_xsl {
@@ -204,8 +222,8 @@ sub open_xsl {
   my $class = ref $self || croak "Not a method call";
   my %args = $self->__parse_args(@_);
 
-  $self->{XSL_DOCUMENT}->dispose
-    if not $self->{XSL_PASSED_AS_DOM} and defined $self->{XSL_DOCUMENT};
+  $self->xsl_document()->dispose
+    if not $self->{XSL_PASSED_AS_DOM} and defined $self->xsl_document();
 
   $self->{XSL_PASSED_AS_DOM} = 1
     if ref $args{Source} eq 'XML::DOM::Document';
@@ -214,16 +232,32 @@ sub open_xsl {
   $self->debug("opening xsl...");
 
   $args{parser_args} ||= {};
-  $self->{XSL_DOCUMENT} = $self->__open_document (Source => $args{Source},
+
+  my $xsl_document      = $self->__open_document (Source => $args{Source},
 						  base   => $self->{XSL_BASE},
 						  parser_args =>
 						  {%{$self->{PARSER_ARGS}},
 						   %{$args{parser_args}}},
 						 );
+
+  $self->xsl_document($xsl_document);
+
   $self->{XSL_BASE} =
     dirname(URI->new_abs($args{Source}, $self->{XSL_BASE})->as_string) . '/';
 
   $self->__preprocess_stylesheet;
+}
+
+sub xsl_document
+{
+   my ( $self, $xsl_document ) = @_;
+
+   if ( defined $xsl_document )
+   {
+      $self->{XSL_DOCUMENT} = $xsl_document;
+   }
+
+   return $self->{XSL_DOCUMENT};
 }
 
 # Argument parsing with backwards compatibility.
@@ -318,7 +352,7 @@ sub __preprocess_stylesheet {
 
 # Why is this here when __get_first_element does, apparently, the same thing?
 # Because, in __get_stylesheet we warp the document.
-  $self->{TOP_XSL_NODE} = $self->{XSL_DOCUMENT}->getFirstChild;
+  $self->{TOP_XSL_NODE} = $self->xsl_document()->getFirstChild;
   $self->__expand_xsl_includes;
   $self->__extract_top_level_variables;
 
@@ -333,7 +367,7 @@ sub __get_stylesheet {
   my $self = shift;
   my $stylesheet;
   my $xsl_ns = $self->{XSL_NS};
-  my $xsl = $self->{XSL_DOCUMENT};
+  my $xsl = $self->xsl_document();
 
   foreach my $child ($xsl->getElementsByTagName ('*', 0)) {
     my ($ns, $tag) = split(':', $child->getTagName);
@@ -362,13 +396,13 @@ sub __get_stylesheet {
     $template->appendChild ($template_content);
   }
 
-  $self->{XSL_DOCUMENT} = $stylesheet;
+  $self->xsl_document($stylesheet);
 }
 
 # private auxiliary function #
 sub __get_first_element {
   my ($self) = @_;
-  my $node = $self->{XSL_DOCUMENT}->getFirstChild;
+  my $node = $self->xsl_document()->getFirstChild;
 
   $node = $node->getNextSibling
     until ref $node eq 'XML::DOM::Element';
@@ -447,7 +481,7 @@ sub __expand_xsl_includes {
       if $@;
 
     $self->debug("inserting `$include_file'");
-    $include_doc->setOwnerDocument($self->{XSL_DOCUMENT});
+    $include_doc->setOwnerDocument($self->xsl_document());
     $self->{TOP_XSL_NODE}->replaceChild($include_doc, $include_node);
     $include_doc->dispose;
   }
@@ -471,8 +505,9 @@ sub __extract_top_level_variables {
 	if ($name) {
 	  my $value = $child->getAttribute("select");
 	  if (!$value) {
-	    my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
-	    $self->_evaluate_template ($child, $self->{XML_DOCUMENT}, '', $result);
+	    my $result = $self->xml_document()->createDocumentFragment;
+	    $self->_evaluate_template ($child, $self->xml_document(), '', 
+                                       $result);
 	    $value = $self->_string ($result);
 	    $result->dispose();
 	  }
@@ -522,21 +557,19 @@ sub __add_default_templates {
 
   $self->debug("adding default templates to stylesheet");
   # add them to the stylesheet
-  $self->{XSL_DOCUMENT}->insertBefore($pi_template,
+  $self->xsl_document()->insertBefore($pi_template,
 				 $self->{TOP_XSL_NODE});
-  $self->{XSL_DOCUMENT}->insertBefore($attr_template,
+  $self->xsl_document()->insertBefore($attr_template,
 				 $self->{TOP_XSL_NODE});
-  $self->{XSL_DOCUMENT}->insertBefore($elem_template,
+  $self->xsl_document()->insertBefore($elem_template,
 				 $self->{TOP_XSL_NODE});
-#  print $self->{XSL_DOCUMENT}->toString;
-#  die;
 }
 
 # private auxiliary function #
 sub __cache_templates {
   my $self = $_[0];
 
-  $self->{TEMPLATE} = [$self->{XSL_DOCUMENT}->getElementsByTagName ("$self->{XSL_NS}template")];
+  $self->{TEMPLATE} = [$self->xsl_document()->getElementsByTagName ("$self->{XSL_NS}template")];
 
   # pre-cache template names and matches #
   # reversing the template order is much more efficient #
@@ -569,19 +602,19 @@ sub __set_xsl_output {
 
   # default settings
   $self->{METHOD} = 'xml';
-  $self->{MEDIA_TYPE} = 'text/xml';
+  $self->media_type('text/xml');
   $self->{OMIT_XML_DECL} = 'yes';
 
   # extraction of top-level xsl:output tag
   my ($output) = 
-    $self->{XSL_DOCUMENT}->getElementsByTagName($self->{XSL_NS} . "output",0);
+    $self->xsl_document()->getElementsByTagName($self->{XSL_NS} . "output",0);
 
   if (defined $output) {
     # extraction and processing of the attributes
     my $attribs = $output->getAttributes;
     my $media  = $attribs->getNamedItem('media-type');
     my $method = $attribs->getNamedItem('method');
-    $self->{MEDIA_TYPE} = $media->getNodeValue if defined $media;
+    $self->media_type($media->getNodeValue) if defined $media;
     $self->{METHOD} = $method->getNodeValue if defined $method;
 
     my $omit = $attribs->getNamedItem('omit-xml-declaration');
@@ -616,13 +649,11 @@ sub __set_xsl_output {
   }
 }
 
-## JNS1712
-
 sub __get_attribute_sets
 {
     my ( $self ) = @_;
 
-    my $doc = $self->{XSL_DOCUMENT};
+    my $doc = $self->xsl_document();
     my $nsp = $self->{XSL_NS};
     my $tagname = $nsp . 'attribute-set';
     foreach my $attribute_set ( $doc->getElementsByTagName($tagname,0))
@@ -634,7 +665,7 @@ sub __get_attribute_sets
        my $name = $name_attr->getValue();
        $self->debug("processing attribute-set $name");  
 
-       $self->{ATTRIBUTE_SETS}->{$name} = {};
+       my $attr_set = {};
 
        my $tagname = $nsp . 'attribute';
 
@@ -648,18 +679,35 @@ sub __get_attribute_sets
           $self->debug("Processing attribute $attr_name");
           if ( $attr_name )
           {
-             my $result = $self->{XML_DOCUMENT}->createDocumentFragment();
+             my $result = $self->xml_document()->createDocumentFragment();
              $self->_evaluate_template($attribute,
-                                       $self->{XML_DOCUMENT},
+                                       $self->xml_document(),
                                        '/',
                                        $result); # might need variables
-             my $value = $self->__string__($result);
-             $self->{ATTRIBUTE_SETS}->{$name}->{$attr_name} = $value;
+             my $value = $self->fix_attribute_value($self->__string__($result));
+             $attr_set->{$attr_name} = $value;
              $result->dispose();
              $self->debug("Adding attribute $attr_name with value $value");
           }
        }
+
+       $self->__attribute_set_($name,$attr_set);
     }
+}
+
+# Accessor for attribute sets
+
+sub __attribute_set_
+{
+   my ($self,$name,$attr_hash) = @_;
+
+   if ( defined $attr_hash && defined $name)
+   {
+      $self->{ATTRIBUTE_SETS}->{$name} = $attr_hash;
+   }
+
+   return defined $name && exists $self->{ATTRIBUTE_SETS}->{$name} ?
+                                  $self->{ATTRIBUTE_SETS}->{$name} : undef;
 }
 
 sub open_project {
@@ -711,7 +759,7 @@ sub transform {
 
   %topvariables = (%{$self->{VARIABLES}}, %topvariables);
   $self->_evaluate_template ( $root_template,            # starting template: the root template
-			      $self->{XML_DOCUMENT},     # current XML node: the root
+			      $self->xml_document(),     # current XML node: the root
 			      '',                        # current XML selection path: the root
 			      $self->{RESULT_DOCUMENT},  # current result tree node: the root
 			      {()},                      # current known variables: none
@@ -735,7 +783,7 @@ sub process {
 
   $self->_evaluate_template (
 			       $root_template, # starting template: the root template
-			       $self->{XML_DOCUMENT}, # current XML node: the root
+			       $self->xml_document(),
 			       '', # current XML selection path: the root
 			       $self->{RESULT_DOCUMENT}, # current result tree node: the root
 			       {
@@ -813,7 +861,14 @@ sub to_dom {
 }
 
 sub media_type {
-  return ($_[0]->{MEDIA_TYPE});
+   my ( $self, $media_type ) = @_;
+
+   if ( defined $media_type )
+   {
+      $self->{MEDIA_TYPE} = $media_type;
+   }
+
+   return $self->{MEDIA_TYPE};
 }
 
 sub print_output {
@@ -833,7 +888,7 @@ sub print_output {
   $deprecation_used{print_output} = 1;
 
   if ($mime) {
-    print "Content-type: $self->{MEDIA_TYPE}\n\n";
+    print "Content-type: " . $self->media_type() . "\n\n";
 
     if ($self->{METHOD} eq 'xml' || $self->{METHOD} eq 'html') {
       if (($self->{OMIT_XML_DECL} eq 'no') && $self->{OUTPUT_VERSION}
@@ -878,11 +933,11 @@ sub dispose {
   $_[0]->{RESULT_DOCUMENT}->dispose if (defined $_[0]->{RESULT_DOCUMENT});
 
   # only dispose xml and xsl when they were not passed as DOM
-  if (not defined $_[0]->{XML_PASSED_AS_DOM} && defined $_-[0]->{XML_DOCUMENT}) {
-    $_[0]->{XML_DOCUMENT}->dispose;
+  if (not defined $_[0]->{XML_PASSED_AS_DOM} && defined $_-[0]->xml_document()) {
+    $_[0]->xml_document()->dispose;
   }
-  if (not defined $_[0]->{XSL_PASSED_AS_DOM} && defined $_-[0]->{XSL_DOCUMENT}) {
-    $_[0]->{XSL_DOCUMENT}->dispose;
+  if (not defined $_[0]->{XSL_PASSED_AS_DOM} && defined $_-[0]->xsl_document()) {
+    $_[0]->xsl_document()->dispose;
   }
 
   $_[0] = undef;
@@ -1074,7 +1129,7 @@ sub _evaluate_test {
     $self->debug("evaluating test $test at path $path:");;
 
     $self->_indent();
-    my $node = $self->_get_node_set ($path, $self->{XML_DOCUMENT},
+    my $node = $self->_get_node_set ($path, $self->xml_document(),
 				     $current_xml_selection_path,
 				     $current_xml_node, $variables);
     if (@$node) {
@@ -1085,7 +1140,7 @@ sub _evaluate_test {
     $self->_outdent();
   } else {
     $self->debug("evaluating path or test $test:");;
-    my $node = $self->_get_node_set ($test, $self->{XML_DOCUMENT},
+    my $node = $self->_get_node_set ($test, $self->xml_document(),
 				     $current_xml_selection_path,
 				     $current_xml_node, $variables, "silent");
     $self->_indent();
@@ -1135,7 +1190,7 @@ sub _evaluate_template {
     } elsif ($node_type == TEXT_NODE) {
         $self->_add_node ($child, $current_result_node);
     } elsif ($node_type == CDATA_SECTION_NODE) {
-      my $text = $self->{XML_DOCUMENT}->createTextNode ($child->getData);
+      my $text = $self->xml_document()->createTextNode ($child->getData);
       $self->_add_node($text, $current_result_node);
     } elsif ($node_type == ENTITY_REFERENCE_NODE) {
       $self->_add_node($child, $current_result_node);
@@ -1159,7 +1214,7 @@ sub _evaluate_template {
 
 sub _add_node {
   my ($self, $node, $parent, $deep, $owner) = @_;
-  $owner ||= $self->{XML_DOCUMENT};
+  $owner ||= $self->xml_document();
 
   $self->debug("adding node (deep)..") if defined $deep;
   $self->debug("adding node (non-deep)..") unless defined $deep;
@@ -1191,7 +1246,7 @@ sub _apply_templates {
 
   if ($select) {
     $self->debug(qq{applying templates on children $select of "$current_xml_selection_path":});
-    $children = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
+    $children = $self->_get_node_set ($select, $self->xml_document(),
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
   } else {
@@ -1273,7 +1328,7 @@ sub _for_each {
 
   if (defined $select) {
     $self->debug("applying template for each child $select of \"$current_xml_selection_path\":");
-    my $children = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
+    my $children = $self->_get_node_set ($select, $self->xml_document(),
 					   $current_xml_selection_path,
 					   $current_xml_node, $variables);
     $self->_indent();
@@ -1468,23 +1523,43 @@ sub _check_attributes_and_recurse {
 			       $current_result_node->getLastChild, $variables, $oldvariables);
 }
 
+##JNS1812
+
 sub _element {
   my ($self, $xsl_node, $current_xml_node, $current_xml_selection_path,
       $current_result_node, $variables, $oldvariables) = @_;
   
   my $name = $xsl_node->getAttribute ('name');
-  $self->debug("inserting Element named \"$name\":");
+  $self->debug(qq{inserting Element named "$name":});
   $self->_indent();
 
   if (defined $name) {
-    my $result = $self->{XML_DOCUMENT}->createElement($name);
+    my $result = $self->xml_document()->createElement($name);
 
     $self->_evaluate_template ($xsl_node,
 				 $current_xml_node,
 				 $current_xml_selection_path,
 				 $result, $variables, $oldvariables);
 
+    my $attr_set = $xsl_node->getAttribute('use-attribute-sets');
 
+    if ( $attr_set )
+    {
+      $self->_indent();
+      my $set_name = $attr_set;
+      
+      if ( my $set = $self->__attribute_set_($set_name) )
+      {
+         $self->debug("Adding attribute-set '$set_name'");
+         
+         foreach my $attr_name ( keys %{$set} )
+         {
+           $self->debug("Adding attribute $attr_name ->" . $set->{$attr_name});
+           $result->setAttribute($attr_name,$set->{$attr_name});
+         }
+      }
+      $self->_outdent();
+    }
     $current_result_node->appendChild($result);
   } else {
     $self->warn(q{expected attribute "name" in <} .
@@ -1517,7 +1592,7 @@ sub _value_of {
   my $xml_node;
 
   if (defined $select) {
-    $xml_node = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
+    $xml_node = $self->_get_node_set ($select, $self->xml_document(),
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
 
@@ -1529,7 +1604,7 @@ sub _value_of {
     $self->_outdent();
 
     if ($text ne '') {
-      my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
+      my $node = $self->xml_document()->createTextNode ($text);
       if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes') {
         $self->debug("disabling output escaping");
         bless $node,'XML::XSLT::DOM::TextDOE' ;
@@ -1650,7 +1725,7 @@ sub _get_node_set {
 	return [$$variables{$varname}->getChildNodes];
       } else {
 	# string or number?
-	return [$self->{XML_DOCUMENT}->createTextNode ($$variables{$varname})];
+	return [$self->xml_document()->createTextNode ($$variables{$varname})];
       }
     } else {
       # var does not exist
@@ -1781,7 +1856,7 @@ sub __try_a_step__ {
 sub __parent__ {
   my ($self, $path, $node, $silent) = @_;
 
-  $self->_indent()
+  $self->_indent();
   if (($node->getNodeType == DOCUMENT_NODE)
       || ($node->getNodeType == DOCUMENT_FRAGMENT_NODE)) {
     $self->debug("no parent!");;
@@ -1906,7 +1981,7 @@ sub _attribute_value_of {
     $value =~ s/(\*|\?|\+)/\\$1/g;
     study ($value);
     while ($value =~ /\G[^\\]?\{(.*?[^\\]?)\}/) {
-      my $node = $self->_get_node_set ($1, $self->{XML_DOCUMENT},
+      my $node = $self->_get_node_set ($1, $self->xml_document(),
 					 $current_xml_selection_path,
 					 $current_xml_node, $variables);
       if (@$node) {
@@ -1935,7 +2010,7 @@ sub _processing_instruction {
     $self->warn("declaration. Use <" . $self->{XSL_NS} . "output> instead...");
   } elsif ($new_PI_name) {
     my $text = $self->__string__ ($xsl_node);
-    my $new_PI = $self->{XML_DOCUMENT}->createProcessingInstruction($new_PI_name, $text);
+    my $new_PI = $self->xml_document()->createProcessingInstruction($new_PI_name, $text);
 
     if ($new_PI) {
       $self->_move_node ($new_PI, $current_result_node);
@@ -1959,7 +2034,7 @@ sub _process_with_params {
 
       if (!$value) {
 	# process content as template
-	$value = $self->{XML_DOCUMENT}->createDocumentFragment;
+	$value = $self->xml_document()->createDocumentFragment;
 
 	$self->_evaluate_template ($param,
 				     $current_xml_node,
@@ -2137,7 +2212,7 @@ sub __evaluate_test__ {
   } elsif ($test =~ /^\s*([\w\.\:\-]+)\s*(<=|>=|!=|=|<|>)\s*['"]?([^'"]*)['"]?\s*$/) {
     my $expval = $3;
     my $test   = $2;
-    my $nodeset=&_get_node_set($self,$1,$self->{XML_DOCUMENT},$path,$node,$variables);
+    my $nodeset=&_get_node_set($self,$1,$self->xml_document(),$path,$node,$variables);
     return ($expval ne '') unless @$nodeset;
     my $content = &__string__($self,$$nodeset[0]);
     my $numeric = $content =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0;
@@ -2189,7 +2264,7 @@ sub _copy_of {
   
   $self->_indent();
   if ($select) {
-    $nodelist = $self->_get_node_set ($select, $self->{XML_DOCUMENT},
+    $nodelist = $self->_get_node_set ($select, $self->xml_document(),
 					$current_xml_selection_path,
 					$current_xml_node, $variables);
   } else {
@@ -2248,7 +2323,7 @@ sub _text {
   $self->_outdent();
 
   if ($text ne '') {
-    my $node = $self->{XML_DOCUMENT}->createTextNode ($text);
+    my $node = $self->xml_document()->createTextNode ($text);
     if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')
       {
       $self->debug("disabling output escaping");
@@ -2271,7 +2346,7 @@ sub _attribute {
   $self->_indent();
 
   if ($name) {
-    my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
+    my $result = $self->xml_document()->createDocumentFragment;
 
     $self->_evaluate_template ($xsl_node,
 				 $current_xml_node,
@@ -2279,7 +2354,9 @@ sub _attribute {
 				 $result, $variables, $oldvariables);
 
     $self->_indent();
-    my $text = $self->__string__ ($result);
+    my $text = $self->fix_attribute_value($self->__string__ ($result));
+
+    
     $self->_outdent();
 
     $current_result_node->setAttribute($name, $text);
@@ -2299,7 +2376,7 @@ sub _comment {
 
   $self->_indent();
 
-  my $result = $self->{XML_DOCUMENT}->createDocumentFragment;
+  my $result = $self->xml_document()->createDocumentFragment;
 
   $self->_evaluate_template ($xsl_node,
 			       $current_xml_node,
@@ -2310,7 +2387,7 @@ sub _comment {
   my $text = $self->__string__ ($result);
   $self->_outdent();
 
-  $self->_move_node ($self->{XML_DOCUMENT}->createComment ($text), $current_result_node);
+  $self->_move_node ($self->xml_document()->createComment ($text), $current_result_node);
   $result->dispose();
 
   $self->_outdent();
@@ -2340,7 +2417,7 @@ sub _variable {
       if (! $value) {
 	#tough case, evaluate content as template
 
-	$value = $self->{XML_DOCUMENT}->createDocumentFragment;
+	$value = $self->xml_document()->createDocumentFragment;
 
 	$self->_evaluate_template ($xsl_node,
 				   $current_xml_node,
@@ -2387,6 +2464,25 @@ sub _outdent
 {
    my ( $self ) = @_;
    $self->{INDENT} -= $self->{INDENT_INCR};
+}
+
+sub fix_attribute_value
+{
+   my ( $self, $text ) = @_;
+
+   # The spec say's that there can't be a literal line break in the
+   # attributes value - white space at the beginning or the end is
+   # almost certainly an mistake.
+
+   $text =~ s/^\s+//g;
+   $text =~ s/\s+$//g;
+
+   if ( $text )
+   {
+      $text =~ s/([\x0A\x0D])/sprintf("&#%x;",ord $1)/eg;
+   }
+
+   return $text;
 }
 
 1;
@@ -2592,9 +2688,9 @@ the stringified content-template.
 Not supported yet:
 - attribute 'namespace'
 
-=head2 xsl:attribute-set		no
+=head2 xsl:attribute-set		yes
 
-Not supported yet.
+Partially
 
 =head2 xsl:call-template		yes
 
@@ -2616,9 +2712,6 @@ until an xsl:otherwise is found. Limited test support, see xsl:when
 Supported.
 
 =head2 xsl:copy				partially
-
-Not supported yet:
-- attribute 'use-attribute-sets'
 
 =head2 xsl:copy-of			limited
 
@@ -2831,11 +2924,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.9 $
+Revision: $Revision: 1.10 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2001/12/17 22:32:12 $
+      On: $Date: 2001/12/18 09:10:10 $
 
-  RCS ID: $Id: XSLT.pm,v 1.9 2001/12/17 22:32:12 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.10 2001/12/18 09:10:10 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
