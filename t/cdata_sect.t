@@ -1,5 +1,5 @@
-# Test that cdata-section elements work
-# $Id: cdata_sect.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
+# Test that cdata-section elements work 
+# $Id: cdata_sect.t,v 1.4 2002/01/14 09:40:23 gellyfish Exp $
 
 use Test::More tests => 7;
 

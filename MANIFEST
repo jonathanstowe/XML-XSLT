@@ -4,6 +4,9 @@ README
 xslt-parser
 lib/XML/XSLT.pm
 MANIFEST
+examples/XSLT.xsl
+examples/XSLT.html
+examples/XSLT.xml
 examples/91-22-5.cml
 examples/91-22-5.cml.xml
 examples/91-22-5.xml
