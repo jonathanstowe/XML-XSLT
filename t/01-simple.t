@@ -54,4 +54,3 @@ foreach (0..$#test) {
   print "ok " . ($_ + 1) . "\n";
 }
 
-# Working more and more
