@@ -1,63 +1,37 @@
-#!/usr/local/bin/perl -w
-
-if (!@ARGV) {
-    die "Usage: $0 [options] <project>$/$/  -d[ebug]\t\tturn debugging mode on$/  -n[oweb]\t\tdon't print content-type$/  -s[tylesheet] <file>\tuse <file> instead of <project>.xsl as template$/  -w[arnings]\t\tturns warnings on$/";
-}
+#!/usr/bin/perl -w -Iblib/lib
 
 use XML::XSLT;
+use Getopt::Std;
+
+my %opt;
+my $usage = "Usage: $0 [options] <project>
+
+  -d[ebug]		turn debugging mode on
+  -n[oweb]		don't print content-type
+  -s[tylesheet] <file>	use <file> instead of <project>.xsl as template
+  -w[arnings]		turns warnings on\n";
+getopts('dnws:', \%opt) || die $usage;
 
 ## global vars ##
-my $noweb = ""; # False #
-my $debug = ""; # False #
-my $warnings = "Active";
-my $project = "";
-my $xslfile = "";
-my $xmlfile = "";
+my $noweb = $opt{n} || 0;
+my $debug = $opt{d} || 0;
+my $warnings = $opt{w} || 0;
+my $project = shift || die $usage;
+my $xslfile = $opt{'s'} || "$project.xsl";
+my $xmlfile = "$project.xml";
 
-&process_arguments (@ARGV);
-print $/ if $debug;
+my $xslt = XML::XSLT->new (Source   => $xslfile,
+			   debug    => $debug,
+			   warnings => $debug);
+$xslt->transform($xmlfile);
 
-my $XSLTparser = XML::XSLT->new ($xslfile, "FILE", debug => $debug, warnings => $warnings);
-$XSLTparser->transform_document ($xmlfile, "FILE");
-print "Content-type: text/html$/$/" unless $noweb;
-$XSLTparser->print_result();
+print STDERR qq{Debug   : "$debug"
+NoWeb   : "$noweb"
+Warnings: "$warnings"
+Project : "$project"
+XML-file: "$xmlfile"
+XSL-file: "$xslfile"
+} if $debug;
 
-exit;
-
-
-sub process_arguments {
-  my @argv = @_;
-  if (@argv) {
-    while ((@argv > 1) && ($argv[0] =~ /^\-/)) {
-      my $param = shift @argv;
-
-      $debug = "active" if ($param =~ /^\-d/i);
-      $noweb = "active" if ($param =~ /^\-n/i);
-      $warnings = "active" if ($param =~ /^\-w/i);
-      if (($param =~ /^\-s/i) && ((@argv > 1) && ($argv[0] !~ /^\-/))) {
-        $param = shift (@argv);
-        $xslfile = $param;
-      }
-
-      $noweb = "" if $debug;
-      $warnings = "" if $debug;
-
-    }
-
-    print "Content-type: text/html$/$/" if $debug;
-    print "Debug   : \"",$debug,"\"$/NoWeb   : \"$noweb\"$/Warnings: \"",$warnings,"\"$/" if $debug;
-
-    if (@argv && ($argv[0] !~ /^\-/)) {
-      $project = shift (@argv);
-      $xmlfile = "$project.xml";
-      $xslfile = "$project.xsl" unless $xslfile;
-      die "Error: could not open $xmlfile, make sure it exists.$/" if (! (-f $xmlfile));
-      die "Error: could not open $xslfile, make sure it exists.$/" if (! (-f $xslfile));
-    } else {
-      die "Error: no project specified, give a name of a project.$/";
-    }
-    print "Project : \"",$project,"\"$/  XML-file: \"$xmlfile\"$/  XSL-file: \"$xslfile\"$/" if $debug;
-  } else {
-    die "Usage: $0 [options] <project>$/$/  -d[ebug]\t\tturn debugging mode on$/  -n[oweb]\t\tdon't print content-type$/  -s[tylesheet] <file>\tuse <file> instead of <project>.xsl as template$/  -w[arnings]\t\tturns warnings on$/";
-  }
-}
+print "Content-type: text/html\n\n" unless $noweb;
+print $xslt->asString;
