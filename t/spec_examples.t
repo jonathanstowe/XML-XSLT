@@ -1,5 +1,5 @@
 # The examples from the 1.1 Working Draft
-# $Id: spec_examples.t,v 1.2 2002/01/08 10:11:47 gellyfish Exp $
+# $Id: spec_examples.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
 
 use Test::More tests => 8;
 
@@ -92,72 +92,25 @@ EOX
 
 my $expected =<<EOE;
 <?xml version="1.0" encoding="iso-8859-1"?>
+<html><head><title>Document Title</title></head><body>
+<h1>Document Title</h1>
 
- <html>
-   <head>
-     <title>
-       Document Title
-     </title>
-   </head>
-   <body>
-     
+<h2>Chapter Title</h2>
 
-  <h1>
-    Document Title
-  </h1>
+<h3>Section Title</h3>
+<p>This is a test.</p>
+<p class="note"><b>NOTE: </b>This is a note.</p>
 
 
-
-  <h2>
-    Chapter Title
-  </h2>
-
+<h3>Another Section Title</h3>
+<p>This is <em>another</em> test.</p>
+<p class="note"><b>NOTE: </b>This is another note.</p>
 
 
-  <h3>
-    Section Title
-  </h3>
-
-
-  <p>
-    This is a test.
-  </p>
-
-
-  <p class="note">
-    <b>NOTE: </b>
-    This is a note.
-  </p>
-
-
-
-
-  <h3>
-    Another Section Title
-  </h3>
-
-
-  <p>
-    This is 
-  <em>
-    another
-  </em>
- test.
-  </p>
-
-
-  <p class="note">
-    <b>NOTE: </b>
-    This is another note.
-  </p>
-
-
-
-
-   </body>
- </html>
+</body></html>
 EOE
 
+chomp($expected);
 my $parser;
 
 eval
@@ -177,11 +130,12 @@ eval
    die "no output" unless $outstr;
 };
 
+
 warn $@ if $DEBUGGING;
 
 ok(!$@,'serve produced output');
 
-print $outstr;
+warn $outstr if $DEBUGGING;
 
 ok($outstr eq $expected,'Matches output');
 

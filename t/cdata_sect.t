@@ -1,5 +1,5 @@
 # Test that cdata-section elements work
-# $Id: cdata_sect.t,v 1.2 2002/01/08 10:16:54 gellyfish Exp $
+# $Id: cdata_sect.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
 
 use Test::More tests => 7;
 
@@ -31,9 +31,10 @@ my $xml = '<doc />';
 
 my $expected =<<EOE;
 <?xml version="1.0" encoding="UTF-8"?>
-
 <example><![CDATA[<foo>]]></example>
 EOE
+
+chomp($expected);
 
 my $parser;
 
@@ -58,7 +59,7 @@ warn $@ if $DEBUGGING;
 
 ok(!$@,'serve produced output');
 
-print $outstr;
+warn $outstr if $DEBUGGING;
 
 ok($outstr eq $expected,'Matches output');
 
@@ -81,9 +82,10 @@ EOS
 
 $expected =<<EOE;
 <?xml version="1.0" encoding="UTF-8"?>
-
 <example><![CDATA[<foo>]]></example>
 EOE
+
+chomp ($expected);
 
 eval
 {

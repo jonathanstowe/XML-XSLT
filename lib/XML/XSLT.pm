@@ -6,6 +6,10 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.16  2002/01/09 09:17:40  gellyfish
+#    * added test for <xsl:text>
+#    * Stylesheet whitespace stripping as per spec and altered tests ...
+#
 #    Revision 1.15  2002/01/08 10:11:47  gellyfish
 #    * First cut at cdata-section-element
 #    * test for above
@@ -100,8 +104,8 @@ sub new {
     ? $args{base}    : 'file://' . cwd . '/';
   $self->{XML_BASE}        = defined $args{base}
     ? $args{base}    : 'file://' . cwd . '/';
-  $self->{USE_DEPRECATED}  = defined $args{use_deprecated}
-    ? $args{use_deprecated} : 0;
+
+  $self->use_deprecated($args{use_deprecated}) if exists $args{use_deprecated};
 
   $self->debug("creating parser object:");
 
@@ -110,6 +114,18 @@ sub new {
   $self->_outdent();
 
   return $self;
+}
+
+sub use_deprecated
+{
+   my ( $self, $use_deprecated ) = @_;
+
+   if ( defined $use_deprecated )
+   {
+     $self->{USE_DEPRECATED} = $use_deprecated;
+   }
+
+   return $self->{USE_DEPRECATED} || 0;
 }
 
 sub DESTROY {}			# Cuts out random dies on includes
@@ -144,7 +160,7 @@ sub serve {
 
   if (my $doctype = $self->doctype()) 
   {
-    $ret = $doctype . $ret;
+    $ret = $doctype . "\n" . $ret;
   }
 
 
@@ -344,7 +360,7 @@ sub __parse_args {
     if(not exists $args{Source}) {
       my $name = [caller(1)]->[3];
       carp "Argument syntax of call to $name deprecated.  See the documentation for $name"
-	unless $self->{USE_DEPRECATED}
+	unless $self->use_deprecated()
 	  or exists $deprecation_used{$name};
       $deprecation_used{$name} = 1;
       %args = ();
@@ -915,7 +931,7 @@ sub open_project {
   my ($xmlflag, $xslflag, %args) = @_;
 
   carp "open_project is deprecated."
-    unless $self->{USE_DEPRECATED}
+    unless $self->use_deprecated()
       or exists $deprecation_used{open_project};
   $deprecation_used{open_project} = 1;
 
@@ -955,6 +971,7 @@ sub transform {
 
   $self->debug("done!");
   $self->_outdent();
+  $self->result_document()->normalize();
   return $self->result_document();
 }
 
@@ -1005,7 +1022,7 @@ sub AUTOLOAD {
 
   if (exists $deprecation{$name}) {
     carp "$name is deprecated.  Use $deprecation{$name}"
-      unless $self->{USE_DEPRECATED}
+      unless $self->use_deprecated()
 	or exists $deprecation_used{$name};
     $deprecation_used{$name} = 1;
     eval qq{return \$self->$deprecation{$name}(\@_)};
@@ -1072,7 +1089,7 @@ sub print_output {
   #  exit;
 
   carp "print_output is deprecated.  Use serve."
-    unless $self->{USE_DEPRECATED}
+    unless $self->use_deprecated()
       or exists $deprecation_used{print_output};
   $deprecation_used{print_output} = 1;
 
@@ -1404,7 +1421,11 @@ sub _evaluate_template {
 				$current_result_node, $variables,
 				$oldvariables);
     } elsif ($node_type == TEXT_NODE) {
-        $self->_add_node ($child, $current_result_node);
+        my $value = $child->getNodeValue;
+        if ( length($value) and $value !~ /^[\x20\x09\x0D\x0A]+$/s )
+        {
+           $self->_add_node ($child, $current_result_node);
+        }
     } elsif ($node_type == CDATA_SECTION_NODE) {
       my $text = $self->xml_document()->createTextNode ($child->getData);
       $self->_add_node($text, $current_result_node);
@@ -2593,7 +2614,7 @@ sub _text {
   if ($text ne '') {
     my $node = $self->xml_document()->createTextNode ($text);
     if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')
-      {
+    {
       $self->debug("disabling output escaping");
       bless $node,'XML::XSLT::DOM::TextDOE' ;
     }
@@ -2601,6 +2622,8 @@ sub _text {
   } else {
     $self->debug("nothing left..");
   }
+
+  $current_result_node->normalize();
 
   $self->_outdent();
 }
@@ -2614,21 +2637,28 @@ sub _attribute {
   $self->_indent();
 
   if ($name) {
-    my $result = $self->xml_document()->createDocumentFragment;
+    if ( $name =~ /^xmlns:/ )
+    {
+       $self->debug("Won't create namespace declaration");
+    }
+    else
+    {
+       my $result = $self->xml_document()->createDocumentFragment;
 
-    $self->_evaluate_template ($xsl_node,
-				 $current_xml_node,
-				 $current_xml_selection_path,
-				 $result, $variables, $oldvariables);
+       $self->_evaluate_template ($xsl_node,
+                                  $current_xml_node,
+                                  $current_xml_selection_path,
+                                  $result, $variables, $oldvariables);
 
-    $self->_indent();
-    my $text = $self->fix_attribute_value($self->__string__ ($result));
+       $self->_indent();
+       my $text = $self->fix_attribute_value($self->__string__ ($result));
 
     
-    $self->_outdent();
+       $self->_outdent();
 
-    $current_result_node->setAttribute($name, $text);
-    $result->dispose();
+       $current_result_node->setAttribute($name, $text);
+       $result->dispose();
+    }
   } else {
     $self->warn(q{expected attribute "name" in <} .
 		$self->xsl_ns() . q{attribute>});
@@ -3175,7 +3205,61 @@ flag C<use_deprecated>.  Example:
  $parser = XML::XSLT->new($xsl, "FILE",
                           use_deprecated => 1);
 
-The deprecations will disappear by the time a 1.0 release is made.
+The deprecated methods will disappear by the time a 1.0 release is made.
+
+The deprecated methods are :
+
+=over 2
+
+=item  output_string      
+
+use toString instead
+
+=item  result_string      
+
+use toString instead
+
+=item  output             
+
+use toString instead
+
+=item  result             
+
+use toString instead
+
+=item  result_mime_type   
+
+use media_type instead
+
+=item  output_mime_type   
+
+use media_type instead
+
+=item  result_tree        
+
+use to_dom instead
+
+=item  output_tree        
+
+use to_dom instead
+
+=item  transform_document 
+
+use transform instead
+
+=item  process_project    
+
+use process instead
+
+=item open_project
+
+use C<Source> argument to B<new()> and B<transform> instead.
+
+=item print_output
+
+use B<serve()> instead.
+
+=back
 
 =head1 BUGS
 
@@ -3207,11 +3291,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.15 $
+Revision: $Revision: 1.16 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2002/01/08 10:11:47 $
+      On: $Date: 2002/01/09 09:17:40 $
 
-  RCS ID: $Id: XSLT.pm,v 1.15 2002/01/08 10:11:47 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.16 2002/01/09 09:17:40 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
