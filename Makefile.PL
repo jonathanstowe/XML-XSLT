@@ -16,6 +16,7 @@ WriteMakefile(
               VERSION_FROM => 'XSLT.pm',
               PREREQ_PM => { XML::Parser => '2.23', XML::DOM => '1.25' },
 	      PM => { 'XSLT.pm' => '$(INST_LIBDIR)/XSLT.pm' },
+	      EXE_FILES => [ qw(xslt-parser) ],
 	      @extras
              );
 
