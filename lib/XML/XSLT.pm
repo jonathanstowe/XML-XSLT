@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.27  2004/04/02 10:48:35  gellyfish
+#    Fixing disposal bug
+#
 #    Revision 1.26  2004/02/20 09:24:26  gellyfish
 #    * Fixes to variables
 #
@@ -360,7 +363,7 @@ sub open_xml
     $self->{XML_BASE} =
       dirname( URI->new_abs( $args{Source}, $self->{XML_BASE} )->as_string )
       . '/';
-    $self->result_document( $self->xml_document()->createDocumentFragment );
+    $self->result_document( $self->xml_document()->createDocumentFragment());
 }
 
 sub xml_document
@@ -869,6 +872,7 @@ sub __cache_templates
 
     foreach my $template ( reverse $self->templates() )
     {
+       next unless $template->getParentNode();
         if ( $template->getParentNode->getTagName =~
             /^([\w\.\-]+\:){0,1}(stylesheet|transform|include)/ )
         {
@@ -1298,8 +1302,12 @@ sub toString
     local $^W;
     local *XML::DOM::Text::print = \&_my_print_text;
 
-    my $string = $self->result_document()->toString();
+    my $string = '';
 
+    if (defined $self->result_document() )
+    {
+      $string = $self->result_document()->toString();
+    }
     return $string;
 }
 
@@ -1307,7 +1315,12 @@ sub to_dom
 {
     my ($self) = @_;
 
-    return $self->result_document();
+    my $document = XML::DOM::Document->new();
+
+    my $dom = $self->result_document()->cloneNode(1);
+    $dom->setOwnerDocument($document);
+    $document->appendChild($dom);
+    return $document;
 }
 
 sub media_type
@@ -1421,21 +1434,27 @@ sub doctype
 sub dispose
 {
 
-    #my $self = $_[0];
-
-    #$_[0]->[PARSER] = undef if (defined $_[0]->[PARSER]);
     $_[0]->result_document()->dispose if ( defined $_[0]->result_document() );
 
-    # only dispose xml and xsl when they were not passed as DOM
-    if ( not defined $_[0]->{XML_PASSED_AS_DOM}
-        && defined $_ - [0]->xml_document() )
+    if ( (not defined $_[0]->{XML_PASSED_AS_DOM} )
+          and defined $_[0]->xml_document() )
     {
         $_[0]->xml_document()->dispose;
     }
-    if ( not defined $_[0]->{XSL_PASSED_AS_DOM}
-        && defined $_ - [0]->xsl_document() )
+    
+    if ( (not defined $_[0]->{XSL_PASSED_AS_DOM} )
+          and defined $_[0]->xsl_document() )
     {
-        $_[0]->xsl_document()->dispose;
+	    $_[0]->xsl_document()->dispose;
+    }
+
+    $_[0]->top_xsl_node()->dispose() if defined $_[0]->top_xsl_node();
+
+
+
+    foreach my $topkey ( %{$_[0]} )
+    {
+        $_[0]->{$topkey} = undef if defined $topkey;
     }
 
     $_[0] = undef;
@@ -1553,6 +1572,9 @@ sub _match_template
 
   # note that the order of @template_matches is the reverse of $self->{TEMPLATE}
     my $count = @template_matches;
+
+    $self->debug("matches: @template_matches");
+
     foreach my $original_match (@template_matches)
     {
 
@@ -2076,9 +2098,11 @@ qq{selecting template $select for child type $ref of "$current_xml_selection_pat
 
     $self->_indent();
 
-    my $child_xml_selection_path = "$current_xml_selection_path/$select";
+    foreach my $select_part ( split /\|/, $select )
+    {
+    my $child_xml_selection_path = "$current_xml_selection_path/$select_part";
     my $template                 =
-      $self->_match_template( "match", $select, $count,
+      $self->_match_template( "match", $select_part, $count,
         $child_xml_selection_path );
 
     if ($template)
@@ -2092,6 +2116,8 @@ qq{selecting template $select for child type $ref of "$current_xml_selection_pat
     {
         $self->debug("skipping template selection...");
     }
+
+ }
 
     $self->_outdent();
 }
@@ -2636,41 +2662,46 @@ sub _get_node_set
               $self->__open_by_filename( $filename, $self->{XSL_BASE} );
         }
 
-        if ( $path =~ /^\// )
-        {
+		  my $return_nodes = [];
 
-            # start from the root #
-            $current_node = $root_node;
-        }
-        elsif ( $path =~ /^self\:\:node\(\)\// )
-        {    #'#"#'#"
+		  foreach my $path_part ( split(/\|/, $path ) )
+		  {
+			  $self->debug("path_part: $path_part");
+           if ( $path_part =~ /^\// )
+           {
+
+               # start from the root #
+               $current_node = $root_node;
+           }
+           elsif ( $path_part =~ /^self\:\:node\(\)\// )
+           {    #'#"#'#"
              # remove preceding dot from './etc', which is expanded to 'self::node()'
              # at the top of this subroutine #
-            $path =~ s/^self\:\:node\(\)//;
+               $path_part =~ s/^self\:\:node\(\)//;
+           }
+           else
+           {
+
+               # to facilitate parsing, precede path with a '/' #
+               $path_part = "/$path_part";
+           }
+
+           $self->debug(qq{using "$path_part":});
+
+           if ( $path_part eq '/' )
+           {
+               push @{$return_nodes}, @{$current_node};
+           }
+           else
+           {
+               push @{$return_nodes},@{$self->__get_node_set__( $path_part, 
+																	             [$current_node],
+																	             $silent )};
+           }
+
+           $self->_outdent();
         }
-        else
-        {
-
-            # to facilitate parsing, precede path with a '/' #
-            $path = "/$path";
-        }
-
-        $self->debug(qq{using "$path":});
-
-        if ( $path eq '/' )
-        {
-            $current_node = [$current_node];
-        }
-        else
-        {
-            $current_node = $self->__get_node_set__( $path, 
-																	  [$current_node], 
-																	  $silent );
-        }
-
-        $self->_outdent();
-
-        return $current_node;
+        return $return_nodes;
     }
 }
 
@@ -2681,23 +2712,25 @@ sub __get_node_set__
 
     # a Qname (?) should actually be: [a-Z_][\w\.\-]*\:[a-Z_][\w\.\-]*
 
+	 my $list = [];
+
     if ( $path eq "" )
     {
 
-        $self->debug("node found!");
-        return $node;
+       $self->debug("node found!");
+       push @{$list}, @{$node};
 
     }
     else
     {
-        my $list = [];
-        foreach my $item (@$node)
-        {
-            my $sublist = $self->__try_a_step__( $path, $item, $silent );
-            push( @$list, @$sublist );
-        }
-        return $list;
-    }
+           foreach my $item (@$node)
+           {
+               my $sublist = $self->__try_a_step__( $path, $item, $silent );
+               push @{$list}, @{$sublist} ;
+           }
+	}
+
+   return $list;
 }
 
 sub __try_a_step__
@@ -2712,7 +2745,7 @@ sub __try_a_step__
 
         # /.. #
         $self->debug(qq{getting parent ("$path")});
-        return &__parent__( $self, $path, $node, $silent );
+        return $self->__parent__(  $path, $node, $silent );
 
     }
     elsif ( $path =~ s/^\/attribute\:\:(\*|[\w\.\:\-]+)// )
@@ -2720,7 +2753,7 @@ sub __try_a_step__
 
         # /@attr #
         $self->debug(qq{getting attribute `$1' ("$path")});
-        return &__attribute__( $self, $1, $path, $node, $silent );
+        return $self->__attribute__( $1, $path, $node, $silent );
 
     }
     elsif ( $path =~
@@ -2870,7 +2903,7 @@ sub __element__
     $self->_indent();
     if (@$node)
     {
-        $node = &__get_node_set__( $self, $path, $node, $silent );
+        $node = $self->__get_node_set__( $path, $node, $silent );
     }
     else
     {
@@ -3215,7 +3248,7 @@ sub __evaluate_test__
 		  $self ->debug("Attribute: $1");
         $content = $node->getAttribute($1);
     }
-    elsif ( $lhs =~ /^([\w\.\:\-]+)$/ )
+    elsif ( $lhs =~ /^([\$\w\.\:\-]+)$/ )
     {
 		  $self ->debug("Path: $1");
         my $test_path = $1;
@@ -4082,11 +4115,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.26 $
+Revision: $Revision: 1.27 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/20 09:24:26 $
+      On: $Date: 2004/04/02 10:48:35 $
 
-  RCS ID: $Id: XSLT.pm,v 1.26 2004/02/20 09:24:26 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.27 2004/04/02 10:48:35 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
 # Test for correct operation of variables
-# $Id: variable.t,v 1.2 2004/02/20 09:24:44 gellyfish Exp $
+# $Id: variable.t,v 1.3 2004/04/02 10:48:36 gellyfish Exp $
 
 
-use Test::More tests => 14;
+use Test::More tests => 15;
 use strict;
 
 use vars qw($DEBUGGING);
@@ -175,3 +175,44 @@ EOX
 };
 
 ok(!$@,"external variables work as expected");
+
+$xml =<<EOX;
+<?xml version='1.0' encoding='utf-8'?>
+<doc></doc>
+EOX
+
+$stylesheet =<<'EOS';
+<?xml version='1.0' encoding='utf-8'?>
+<xsl:stylesheet version='1.0' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'>
+
+<xsl:variable name='param1' select="test"/>
+
+
+<xsl:template match='doc'>
+ <xsl:if test='$param1'>
+  <p>param1 exists</p>
+  <p>param1's value is: <xsl:value-of select='$param1'/></p>
+  <xsl:if test="$param1 = 'test'">
+   <p>param1 is equal to "test"</p>
+  </xsl:if>
+  <xsl:if test="$param1 != 'test'">
+   <p>param1 is not equal to "test"</p>
+  </xsl:if>
+ </xsl:if>
+</xsl:template>
+</xsl:stylesheet>
+EOS
+
+eval
+{
+   $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING);
+
+   $parser->transform(\$xml);
+
+   $outstr = $parser->toString();
+
+   $correct = q%<p>param1 exists</p><p>param1's value is: test</p><p>param1 is equal to "test"</p>%;
+   die "$outstr ne $correct" unless $outstr eq $correct;
+};
+
+ok(!$@,'Variables work in tests');
