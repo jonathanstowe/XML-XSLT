@@ -1,5 +1,5 @@
 # Test that cdata-section elements work
-# $Id: cdata_sect.t,v 1.1 2002/01/08 10:11:47 gellyfish Exp $
+# $Id: cdata_sect.t,v 1.2 2002/01/08 10:16:54 gellyfish Exp $
 
 use Test::More tests => 7;
 
@@ -39,7 +39,7 @@ my $parser;
 
 eval
 {
-   $parser = XML::XSLT->new($stylesheet,debug => $DEBUGGING);
+   $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
    die unless $parser;
 };
 
