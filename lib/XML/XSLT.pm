@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.22  2004/02/17 08:52:29  gellyfish
+#    * 'use-attribute-sets' works in xsl:copy and recursively
+#
 #    Revision 1.21  2004/02/16 10:29:20  gellyfish
 #    * Fixed variable implementation to handle non literals
 #    * refactored test implementation
@@ -995,6 +998,8 @@ sub __get_attribute_sets
     my $doc     = $self->xsl_document();
     my $nsp     = $self->xsl_ns();
     my $tagname = $nsp . 'attribute-set';
+	 my %inc;
+	 my @included;
     foreach my $attribute_set ( $doc->getElementsByTagName( $tagname, 0 ) )
     {
         my $attribs = $attribute_set->getAttributes();
@@ -1003,6 +1008,15 @@ sub __get_attribute_sets
         next unless defined $name_attr;
         my $name = $name_attr->getValue();
         $self->debug("processing attribute-set $name");
+
+		  if ( my $uas = $attribs->getNamedItem('use-attribute-sets') )
+		  {
+			   $self->_indent();
+            $inc{$name} = $uas->getValue();
+				$self->debug("Attribute set $name includes $inc{$name}");
+				push @included, $name;
+			   $self->_outdent();
+		  }
 
         my $attr_set = {};
 
@@ -1031,7 +1045,16 @@ sub __get_attribute_sets
         }
 
         $self->__attribute_set_( $name, $attr_set );
+
     }
+	 foreach my $as (@included )
+	 {
+		 $self->_indent();
+		 $self->debug("adding attributes from $inc{$as} to $as");
+		 my %fix = (%{$self->__attribute_set_($as)},%{$self->__attribute_set_($inc{$as})});
+       $self->__attribute_set_($as,\%fix);
+		 $self->_outdent();
+	 }
 }
 
 # Accessor for attribute sets
@@ -2218,26 +2241,7 @@ sub _element
         $self->_evaluate_template( $xsl_node, $current_xml_node,
             $current_xml_selection_path, $result, $variables, $oldvariables );
 
-        my $attr_set = $xsl_node->getAttribute('use-attribute-sets');
-
-        if ($attr_set)
-        {
-            $self->_indent();
-            my $set_name = $attr_set;
-
-            if ( my $set = $self->__attribute_set_($set_name) )
-            {
-                $self->debug("Adding attribute-set '$set_name'");
-
-                foreach my $attr_name ( keys %{$set} )
-                {
-                    $self->debug(
-                        "Adding attribute $attr_name ->" . $set->{$attr_name} );
-                    $result->setAttribute( $attr_name, $set->{$attr_name} );
-                }
-            }
-            $self->_outdent();
-        }
+	 	  $self->_apply_attribute_set($xsl_node,$result);
         $current_result_node->appendChild($result);
     }
     else
@@ -2246,6 +2250,32 @@ sub _element
             q{expected attribute "name" in <} . $self->xsl_ns() . q{element>} );
     }
     $self->_outdent();
+}
+
+sub _apply_attribute_set
+{
+   my ( $self,$xsl_node, $output_node) = @_;
+
+   my $attr_set = $xsl_node->getAttribute('use-attribute-sets');
+
+   if ($attr_set)
+   {
+      $self->_indent();
+      my $set_name = $attr_set;
+
+      if ( my $set = $self->__attribute_set_($set_name) )
+      {
+         $self->debug("Adding attribute-set '$set_name'");
+
+         foreach my $attr_name ( keys %{$set} )
+         {
+           $self->debug(
+                        "Adding attribute $attr_name ->" . $set->{$attr_name} );
+           $output_node->setAttribute( $attr_name, $set->{$attr_name} );
+         }
+      }
+      $self->_outdent();
+   }
 }
 
 {
@@ -3183,6 +3213,7 @@ sub _copy
     else
     {
         $self->_add_node( $current_xml_node, $current_result_node );
+		  $self->_apply_attribute_set($xsl_node,$current_result_node->getLastChild());
         $self->_evaluate_template( $xsl_node, $current_xml_node,
             $current_xml_selection_path, $current_result_node->getLastChild,
             $variables, $oldvariables );
@@ -3809,8 +3840,6 @@ Not supported yet:
 - attribute 'disable-output-escaping'
 
 =item xsl:variable			partial
-
-Variables can be set with either a literal or nodepath in the select
 or from literal text in the stylesheet.
 
 =item xsl:when				limited
@@ -3944,11 +3973,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.21 $
+Revision: $Revision: 1.22 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/02/16 10:29:20 $
+      On: $Date: 2004/02/17 08:52:29 $
 
-  RCS ID: $Id: XSLT.pm,v 1.21 2004/02/16 10:29:20 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.22 2004/02/17 08:52:29 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
