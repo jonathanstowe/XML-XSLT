@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.17  2002/01/13 10:35:00  gellyfish
+#    Updated pod
+#
 #    Revision 1.16  2002/01/09 09:17:40  gellyfish
 #    * added test for <xsl:text>
 #    * Stylesheet whitespace stripping as per spec and altered tests ...
@@ -44,7 +47,7 @@
 
 =head1 NAME
 
-XML::XSLT - A perl module for processing XSLT
+   XML::XSLT - A perl module for processing XSLT
 
 =cut
 
@@ -2801,6 +2804,7 @@ sub fix_attribute_value
 1;
 
 __DATA__
+
 =head1 SYNOPSIS
 
  use XML::XSLT;
@@ -2810,7 +2814,7 @@ __DATA__
  $xslt->transform ($xmlfile);
  print $xslt->toString;
 
- $xslt->dispose ();
+ $xslt->dispose();
 
 =head1 DESCRIPTION
 
@@ -2838,13 +2842,15 @@ Either of the following are allowed:
 In documentation, the named parameter `Source' is always shown, but it
 is never required.
 
-=head1 METHODS
+=head2 METHODS
 
-=head2 new(Source => $xml [, %args])
+=over 4
+
+=item new(Source => $xml [, %args])
 
 Returns a new XSLT parser object.  Valid flags are:
 
-=over 4
+=over 2
 
 =item DOMparser_args
 
@@ -2877,7 +2883,7 @@ Amount to indent each level of debug message.  Defaults to 1.
 
 =back
 
-=head2 open_xml(Source => $xml [, %args])
+=item open_xml(Source => $xml [, %args])
 
 Gives the XSLT object new XML to process.  Returns an XML::DOM object
 corresponding to the XML.
@@ -2894,7 +2900,7 @@ Arguments to pase to the parser.
 
 =back
 
-=head2 open_xsl(Source => $xml, [, %args])
+=item open_xsl(Source => $xml, [, %args])
 
 Gives the XSLT object a new stylesheet to use in processing XML.
 Returns an XML::DOM object corresponding to the stylesheet.  Any
@@ -2912,18 +2918,18 @@ Arguments to pase to the parser.
 
 =back
 
-=head2 process(%variables)
+=item process(%variables)
 
 Processes the previously loaded XML through the stylesheet using the
 variables set in the argument.
 
-=head2 transform(Source => $xml [, %args])
+=item transform(Source => $xml [, %args])
 
 Processes the given XML through the stylesheet.  Returns an XML::DOM
 object corresponding to the transformed XML.  Any arguments present
 are passed to the XML::DOM::Parser.
 
-=head2 serve(Source => $xml [, %args])
+=item serve(Source => $xml [, %args])
 
 Processes the given XML through the stylesheet.  Returns a string
 containg the result.  Example:
@@ -2960,31 +2966,35 @@ The type of DOCTYPE this document is.  Defaults to SYSTEM.
 
 =back
 
-=head2 toString
+=item toString
 
 Returns the result of transforming the XML with the stylesheet as a
 string.
 
-=head2 to_dom
+=item to_dom
 
 Returns the result of transforming the XML with the stylesheet as an
 XML::DOM object.
 
-=head2 media_type
+=item media_type
 
 Returns the media type (aka mime type) of the object.
 
-=head2 dispose
+=item dispose
 
 Executes the C<dispose> method on each XML::DOM object.
 
+=back
+
 =head1 XML::XSLT Commands
 
-=head2 xsl:apply-imports		no
+=over 4
+
+=item xsl:apply-imports		no
 
 Not supported yet.
 
-=head2 xsl:apply-templates		limited
+=item xsl:apply-templates		limited
 
 Attribute 'select' is supported to the same extent as xsl:value-of
 supports path selections.
@@ -2993,7 +3003,7 @@ Not supported yet:
 - attribute 'mode'
 - xsl:sort and xsl:with-param in content
 
-=head2 xsl:attribute			partially
+=item xsl:attribute			partially
 
 Adds an attribute named to the value of the attribute 'name' and as value
 the stringified content-template.
@@ -3001,11 +3011,11 @@ the stringified content-template.
 Not supported yet:
 - attribute 'namespace'
 
-=head2 xsl:attribute-set		yes
+=item xsl:attribute-set		yes
 
 Partially
 
-=head2 xsl:call-template		yes
+=item xsl:call-template		yes
 
 Takes attribute 'name' which selects xsl:template's by name.
 
@@ -3015,33 +3025,33 @@ Weak support:
 Not supported yet:
 - xsl:sort
 
-=head2 xsl:choose			yes
+=item xsl:choose			yes
 
 Tests sequentially all xsl:whens until one succeeds or
 until an xsl:otherwise is found. Limited test support, see xsl:when
 
-=head2 xsl:comment			yes
+=item xsl:comment			yes
 
 Supported.
 
-=head2 xsl:copy				partially
+=item xsl:copy				partially
 
-=head2 xsl:copy-of			limited
+=item xsl:copy-of			limited
 
 Attribute 'select' functions as well as with
 xsl:value-of
 
-=head2 xsl:decimal-format		no
+=item xsl:decimal-format		no
 
 Not supported yet.
 
-=head2 xsl:element			yes
+=item xsl:element			yes
 
-=head2 xsl:fallback			no
+=item xsl:fallback			no
 
 Not supported yet.
 
-=head2 xsl:for-each			limited
+=item xsl:for-each			limited
 
 Attribute 'select' functions as well as with
 xsl:value-of
@@ -3049,74 +3059,74 @@ xsl:value-of
 Not supported yet:
 - xsl:sort in content
 
-=head2 xsl:if				limited
+=item xsl:if				limited
 
 Identical to xsl:when, but outside xsl:choose context.
 
-=head2 xsl:import			no
+=item xsl:import			no
 
 Not supported yet.
 
-=head2 xsl:include			yes
+=item xsl:include			yes
 
 Takes attribute href, which can be relative-local, 
 absolute-local as well as an URL (preceded by
 identifier http:).
 
-=head2 xsl:key				no
+=item xsl:key				no
 
 Not supported yet.
 
-=head2 xsl:message			no
+=item xsl:message			no
 
 Not supported yet.
 
-=head2 xsl:namespace-alias		no
+=item xsl:namespace-alias		no
 
 Not supported yet.
 
-=head2 xsl:number			no
+=item xsl:number			no
 
 Not supported yet.
 
-=head2 xsl:otherwise			yes
+=item xsl:otherwise			yes
 
 Supported.
 
-=head2 xsl:output			limited
+=item xsl:output			limited
 
 Only the initial xsl:output element is used.  The "text" output method
 is not supported, but shouldn't be difficult to implement.  Only the
 "doctype-public", "doctype-system", "omit-xml-declaration", "method",
 and "encoding" attributes have any support.
 
-=head2 xsl:param			experimental
+=item xsl:param			experimental
 
 Synonym for xsl:variable (currently). See xsl:variable for support.
 
-=head2 xsl:preserve-space		no
+=item xsl:preserve-space		no
 
 Not supported yet. Whitespace is always preserved.
 
-=head2 xsl:processing-instruction	yes
+=item xsl:processing-instruction	yes
 
 Supported.
 
-=head2 xsl:sort				no
+=item xsl:sort				no
 
 Not supported yet.
 
-=head2 xsl:strip-space			no
+=item xsl:strip-space			no
 
 Not supported yet. No whitespace is stripped.
 
-=head2 xsl:stylesheet			limited
+=item xsl:stylesheet			limited
 
 Minor namespace support: other namespace than 'xsl:' for xsl-commands
 is allowed if xmlns-attribute is present. xmlns URL is verified.
 Other attributes are ignored.
 
-=head2 xsl:template			limited
+=item xsl:template			limited
 
 Attribute 'name' and 'match' are supported to minor extend.
 ('name' must match exactly and 'match' must match with full
@@ -3125,15 +3135,15 @@ path or no path)
 Not supported yet:
 - attributes 'priority' and 'mode'
 
-=head2 xsl:text				yes
+=item xsl:text				yes
 
 Supported.
 
-=head2 xsl:transform			limited
+=item xsl:transform			limited
 
 Synonym for xsl:stylesheet
 
-=head2 xsl:value-of			limited
+=item xsl:value-of			limited
 
 Inserts attribute or element values. Limited support:
 
@@ -3162,12 +3172,12 @@ and combinations of these.
 Not supported yet:
 - attribute 'disable-output-escaping'
 
-=head2 xsl:variable			experimental
+=item xsl:variable			experimental
 
 Very limited. It should be possible to define a variable and use it with
 &lt;xsl:value select="$varname" /&gt; within the same template.
 
-=head2 xsl:when				limited
+=item xsl:when				limited
 
 Only inside xsl:choose. Limited test support:
 
@@ -3183,9 +3193,11 @@ Only inside xsl:choose. Limited test support:
 
 path is supported to the same extend as with xsl:value-of
 
-=head2 xsl:with-param			experimental
+=item xsl:with-param			experimental
 
 It is currently not functioning. (or is it?)
+
+=back
 
 =head1 SUPPORT
 
@@ -3279,10 +3291,15 @@ the same terms and conditions as Perl.
 
 =head1 AUTHORS
 
-Geert Josten <gjosten@sci.kun.nl>,
-Egon Willighagen <egonw@sci.kun.nl>,
+Geert Josten <gjosten@sci.kun.nl>
+
+Egon Willighagen <egonw@sci.kun.nl>
+
 Mark A. Hershberger <mah@everybody.org>
-Bron Gondwana <perlcode@brong.net>,
+
+Bron Gondwana <perlcode@brong.net>
+
+Jonathan Stowe <jns@gellyfish.com>
 
 =head1 SEE ALSO
 
@@ -3291,11 +3308,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.16 $
+Revision: $Revision: 1.17 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2002/01/09 09:17:40 $
+      On: $Date: 2002/01/13 10:35:00 $
 
-  RCS ID: $Id: XSLT.pm,v 1.16 2002/01/09 09:17:40 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.17 2002/01/13 10:35:00 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
