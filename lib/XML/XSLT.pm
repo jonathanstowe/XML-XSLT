@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.19  2002/02/18 09:05:14  gellyfish
+#    Refactoring
+#
 #    Revision 1.18  2002/01/16 21:05:27  gellyfish
 #    * Added the manpage as an example
 #    * Started to properly implement omit-xml-declaration
@@ -81,7 +84,7 @@ $VERSION = '0.40';
 @ISA         = qw( Exporter );
 @EXPORT_OK   = qw( &transform &serve );
 
-# pretty print HTML tags (<BR /> etc...)
+
 
 my %deprecation_used;
 
@@ -136,6 +139,18 @@ sub use_deprecated
 
 sub DESTROY {}			# Cuts out random dies on includes
 
+sub default_xml_version
+{
+    my ( $self, $xml_version ) = @_;
+
+    if ( defined $xml_version )
+    {
+       $self->{DEFAULT_XML_VERSION} = $xml_version;
+    }
+
+    return $self->{DEFAULT_XML_VERSION} ||= '1.0';
+}
+
 sub serve {
   my $self = shift;
   my $class = ref $self || croak "Not a method call";
@@ -144,8 +159,9 @@ sub serve {
 
   $args{http_headers}    = 1 unless defined $args{http_headers};
   $args{xml_declaration} = 1 unless defined $args{xml_declaration};
-  $args{xml_version}     = "1.0" unless defined $args{xml_version};
-  $args{doctype}         = "SYSTEM" unless defined $args{doctype};
+  $args{xml_version}     = $self->default_xml_version()
+                                       unless defined $args{xml_version};
+  $args{doctype}         = 'SYSTEM' unless defined $args{doctype};
   $args{clean}           = 0 unless defined $args{clean};
 
   $ret = $self->transform($args{Source})->toString;
@@ -188,7 +204,7 @@ sub xml_declaration
 {
    my ( $self, $xml_version, $output_encoding ) = @_;
 
-   $xml_version ||= '1.0';
+   $xml_version ||= $self->default_xml_version();
    $output_encoding ||= $self->output_encoding();
 
    return qq{<?xml version="$xml_version" encoding="$output_encoding"?>};
@@ -358,7 +374,7 @@ sub __parse_args {
   my $self = shift;
   my %args;
 
-  if(@_ % 2 == 1) {
+  if(@_ % 2 ) {
     $args{Source} = shift;
     %args = (%args, @_);
   } else {
@@ -475,14 +491,23 @@ sub __get_stylesheet {
   my $xsl_ns = $self->xsl_ns();
   my $xsl = $self->xsl_document();
 
-  foreach my $child ($xsl->getElementsByTagName ('*', 0)) {
-    my ($ns, $tag) = split(':', $child->getTagName);
-    if(not defined $tag) {
+  foreach my $child ($xsl->getElementsByTagName ('*', 0)) 
+  {
+    my ($ns, $tag) = split(':', $child->getTagName());
+    if(not defined $tag) 
+    {
       $tag = $ns;
       $ns  = $self->default_ns();
     }
-    if ($tag eq 'stylesheet' ||
-	$tag eq 'transform') {
+    if ($tag eq 'stylesheet' || $tag eq 'transform') 
+    {
+      if ( my $attributes = $child->getAttributes())
+      {
+         my $version = $attributes->getNamedItem('version'); 
+
+         $self->xslt_version($version->getNodeValue()) if $version;
+      }
+
       $stylesheet = $child;
       last;
     }
@@ -505,10 +530,22 @@ sub __get_stylesheet {
   $self->xsl_document($stylesheet);
 }
 
+sub xslt_version
+{
+   my ( $self, $xslt_version ) = @_;
+
+   if ( defined $xslt_version )
+   {
+       $self->{XSLT_VERSION} = $xslt_version;
+   }
+
+   return $self->{XSLT_VERSION} ||= '1.0';
+}
+
 # private auxiliary function #
 sub __get_first_element {
   my ($self) = @_;
-  my $node = $self->xsl_document()->getFirstChild;
+  my $node = $self->xsl_document()->getFirstChild();
 
   $node = $node->getNextSibling
     until ref $node eq 'XML::DOM::Element';
@@ -896,7 +933,8 @@ sub output_version
      $self->{OUTPUT_VERSION} = $output_version;
    }
 
-   return exists $self->{OUTPUT_VERSION} ? $self->{OUTPUT_VERSION} : '1.0';
+   return exists $self->{OUTPUT_VERSION} ? $self->{OUTPUT_VERSION} : 
+                                           $self->default_xml_version();
 }
 
 sub __get_attribute_sets
@@ -1069,12 +1107,11 @@ sub AUTOLOAD {
 
 sub _my_print_text {
   my ($self, $FILE) = @_;
-
-  # This should work with either XML::DOM 1.25 or XML::DOM 1.27
+  
   if (UNIVERSAL::isa($self, "XML::DOM::CDATASection")) {
-    $FILE->print ($self->getData);
+    $FILE->print ($self->getData());
   } else {
-    $FILE->print (XML::DOM::encodeText($self->getData, "<&"));
+    $FILE->print (XML::DOM::encodeText($self->getData(), "<&"));
   }
 }
 
@@ -1083,21 +1120,13 @@ sub toString {
 
   local *XML::DOM::Text::print = \&_my_print_text;
 
-  my $string = $self->result_document()->toString;
-  #  $string =~ s/\n\s*\n(\s*)\n/\n$1\n/g;  # Substitute multiple empty lines by one
-  #  $string =~ s/\/\>/ \/\>/g;            # Insert a space before every />
-
-  # get rid of CDATA wrappers
-  #  if (! $self->{printCDATA}) {
-  #    $string =~ s/\<\!\[CDATA\[//g;
-  #    $string =~ s/\]\]>//g;
-  #  }
+  my $string = $self->result_document()->toString();
 
   return $string;
 }
 
 sub to_dom {
-  my $self = shift;
+  my ($self) = @_;
 
   return $self->result_document();
 }
@@ -3341,11 +3370,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.18 $
+Revision: $Revision: 1.19 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2002/01/16 21:05:27 $
+      On: $Date: 2002/02/18 09:05:14 $
 
-  RCS ID: $Id: XSLT.pm,v 1.18 2002/01/16 21:05:27 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.19 2002/02/18 09:05:14 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
