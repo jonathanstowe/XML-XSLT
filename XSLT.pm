@@ -13,6 +13,23 @@ XML::XSLT - A perl module for processing XSLT
 
 =cut
 
+
+######################################################################
+# Auxiliary package for disable-output-escaping
+######################################################################
+
+package XML::XSLT::DOM::TextDOE;
+use vars qw( @ISA );
+@ISA = qw( XML::DOM::Text );
+
+sub print
+ {
+ my ($self, $FILE) = @_;
+ $FILE->print ($self->getData);
+}
+
+
+
 ######################################################################
 package XML::XSLT;
 ######################################################################
@@ -712,21 +729,9 @@ sub AUTOLOAD {
   }
 }
 
-sub _my_print_text {
-  my ($self, $FILE) = @_;
-
-  # This should work with either XML::DOM 1.25 or XML::DOM 1.27
-  if (UNIVERSAL::isa($self, "XML::DOM::CDATASection")) {
-    $FILE->print ($self->getData);
-  } else {
-    $FILE->print (XML::DOM::encodeText($self->getData, "<&"));
-  }
-}
 
 sub toString {
   my $Self = $_[0];
-
-  local *XML::DOM::Text::print = \&_my_print_text;
 
   my $string = $Self->[RESULT_DOCUMENT]->toString;
   #  $string =~ s/\n\s*\n(\s*)\n/\n$1\n/g;  # Substitute multiple empty lines by one
@@ -1385,7 +1390,13 @@ sub _value_of {
     $Self->[INDENT] -= $Self->[INDENT_INCR];
 
     if ($text ne '') {
-      $Self->_add_node ($Self->[XML_DOCUMENT]->createTextNode($text), $current_result_node);
+      my $node = $Self->[XML_DOCUMENT]->createTextNode ($text);                                              
+      if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')                               
+        {                                                                                              
+        $Self->debug("disabling output escaping");
+        bless $node,'XML::XSLT::DOM::TextDOE' ;                                                        
+      }                                                                                               
+      $Self->_move_node ($node, $current_result_node); 
     } else {
       $Self->debug("nothing left..");
     }
@@ -2079,7 +2090,13 @@ sub _text {
   $Self->[INDENT] -= $Self->[INDENT_INCR];
 
   if ($text ne '') {
-    $Self->_move_node ($Self->[XML_DOCUMENT]->createTextNode ($text), $current_result_node);
+    my $node = $Self->[XML_DOCUMENT]->createTextNode ($text);                                              
+    if ($xsl_node->getAttribute ('disable-output-escaping') eq 'yes')                               
+      {                                                                                              
+      $Self->debug("disabling output escaping");
+      bless $node,'XML::XSLT::DOM::TextDOE' ;                                                        
+    }                                                                                               
+    $Self->_move_node ($node, $current_result_node); 
   } else {
     $Self->debug("nothing left..");
   }
@@ -2509,10 +2526,9 @@ path or no path)
 Not supported yet:
 - attributes 'priority' and 'mode'
 
-=head2 xsl:text				partially
+=head2 xsl:text				yes
 
-Not supported yet:
-- attribute 'disable-output-escaping'
+Supported.
 
 =head2 xsl:transform			limited
 
@@ -2542,10 +2558,7 @@ Inserts attribute or element values. Limited support:
 
 <xsl:value-of select="comment()"/>
 
-and combinations of these;
-
-Not supported yet:
-- attribute 'disable-output-escaping'
+and combinations of these.
 
 =head2 xsl:variable			experimental
 
@@ -2623,11 +2636,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.18 $
+Revision: $Revision: 1.19 $
    Label: $Name:  $
 
 Last Chg: $Author: nejedly $ 
-      On: $Date: 2000/08/10 13:38:00 $
+      On: $Date: 2000/09/20 17:58:17 $
 
-  RCS ID: $Id: XSLT.pm,v 1.18 2000/08/10 13:38:00 nejedly Exp $
+  RCS ID: $Id: XSLT.pm,v 1.19 2000/09/20 17:58:17 nejedly Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/Attic/XSLT.pm,v $
