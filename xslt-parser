@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-# $Id: xslt-parser,v 1.5 2000/07/13 22:53:27 hexmode Exp $
+# $Id: xslt-parser,v 1.6 2000/07/13 22:54:17 hexmode Exp $
 
 use XML::XSLT;
 use Getopt::Std;
@@ -73,7 +73,6 @@ my $xmlfile = "$project.xml";
 my $xslt = XML::XSLT->new (Source   => $xslfile,
 			   debug    => $debug,
 			   warnings => $debug);
-$xslt->transform($xmlfile);
 
 print STDERR qq{Debug   : "$debug"
 NoWeb   : "$noweb"
@@ -83,6 +82,7 @@ XML-file: "$xmlfile"
 XSL-file: "$xslfile"
 } if $debug;
 
-print "Content-type: text/html\n\n" unless $noweb;
-print $xslt->toString;
+print $xslt->serve(Source => $xmlfile,
+		   http_headers => ! $noweb,
+		  );
 
