@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.29  2005/12/08 12:53:39  gellyfish
+#    Added patch from andy_bach@wiwb.usourts.gov to fix warning in __evaluate_test__
+#
 #    Revision 1.28  2004/06/02 07:48:34  gellyfish
 #    Fixed the check if $args{Source} is an 'XML::DOM::Document' from John
 #    Bywater.
@@ -390,14 +393,19 @@ sub open_xsl
     my $class = ref $self || croak "Not a method call";
     my %args  = $self->__parse_args(@_);
 
+
+
     $self->xsl_document()->dispose
       if not $self->{XSL_PASSED_AS_DOM}
       and defined $self->xsl_document();
+
+
 
     if ( ref $args{Source} && UNIVERSAL::isa($args{Source}, 'XML::DOM::Document' ))
     {
        $self->{XSL_PASSED_AS_DOM} = 1
     }  
+
 
     # open new document  # open new document
     $self->debug("opening xsl...");
@@ -770,7 +778,11 @@ sub __extract_top_level_variables
             {
 
                 my $name = $child->getAttribute("name");
-                if ($name)
+                if ( exists $self->{VARIABLES}->{$name} )
+                {
+                   $self->debug("$tag $name already set to '$self->{VARIABLES}->{$name}'");
+                }
+                elsif ($name)
                 {
 						  $self->debug("got $tag called $name");
                     my $value = $child->getAttributeNode("select");
@@ -858,13 +870,15 @@ sub templates
     {
         $self->{TEMPLATE} = $templates;
     }
-
+    
+    $self->debug("templates() called from : " . (caller(1))[3]);
     unless ( exists $self->{TEMPLATE} )
     {
         $self->{TEMPLATE} = [];
         my $xsld = $self->xsl_document();
         my $tag  = $self->xsl_ns() . 'template';
 
+        $self->debug("getting $tag");
         @{ $self->{TEMPLATE} } = $xsld->getElementsByTagName($tag);
     }
 
@@ -2591,6 +2605,9 @@ sub _get_node_set
     $current_node ||= $root_node;
     $silent       ||= 0;
 
+    $self->{VARIABLES} ||= {};
+    $variables ||= {};
+
 	 %{$variables} = (%{$self->{VARIABLES}}, %{$variables});
     $self->debug(qq{getting node-set "$path" from "$current_path"});
 
@@ -3251,6 +3268,11 @@ sub __evaluate_test__
        $test_cond = $2;
 		 $expval    = $3;
 	 }
+    else
+    {
+       $self->debug("no match for test [$test]");
+       return '';
+    }
 	 $self->debug("Test LHS: $lhs");
     if ( $lhs =~ /^\@([\w\.\:\-]+)$/ )
     {
@@ -4124,11 +4146,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.28 $
+Revision: $Revision: 1.29 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2004/06/02 07:48:34 $
+      On: $Date: 2005/12/08 12:53:39 $
 
-  RCS ID: $Id: XSLT.pm,v 1.28 2004/06/02 07:48:34 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.29 2005/12/08 12:53:39 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
