@@ -37,7 +37,6 @@ examples/test2.xml
 examples/test2.xsl
 examples/xmlspec.xsl
 examples/xpath.xsl
-examples/xslt.xsl
 t/attributes.t
 t/call_template.t
 t/cdata_sect.t

@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.31  2007/05/25 15:16:18  gellyfish
+#    * Merged in some changes
+#
 #    Revision 1.30  2006/11/17 21:16:45  gellyfish
 #    Check in interim fix for literal variable at top level
 #
@@ -3226,11 +3229,13 @@ sub __element__
 sub __attribute__
 {
     my ( $self, $attribute, $path, $node, $silent ) = @_;
+
+    $self->_indent();
+
     if ( $attribute eq '*' )
     {
         $node = [ $node->getAttributes->getValues ];
 
-        $self->_indent();
         if ($node)
         {
             $node = &__get_node_set__( $self, $path, $node, $silent );
@@ -3239,13 +3244,11 @@ sub __attribute__
         {
             $self->debug("failed!");
         }
-        $self->_outdent();
     }
     else
     {
         $node = $node->getAttributeNode($attribute);
 
-        $self->_indent();
         if ($node)
         {
             $node = &__get_node_set__( $self, $path, [$node], $silent );
@@ -3255,8 +3258,9 @@ sub __attribute__
             $self->debug("failed!");
             $node = [];
         }
-        $self->_outdent();
     }
+
+    $self->_outdent();
 
     return $node;
 }
@@ -4250,11 +4254,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.30 $
+Revision: $Revision: 1.31 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2006/11/17 21:16:45 $
+      On: $Date: 2007/05/25 15:16:18 $
 
-  RCS ID: $Id: XSLT.pm,v 1.30 2006/11/17 21:16:45 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.31 2007/05/25 15:16:18 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

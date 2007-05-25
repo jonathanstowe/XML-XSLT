@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
 # Test for correct operation of variables
-# $Id: variable.t,v 1.3 2004/04/02 10:48:36 gellyfish Exp $
+# $Id: variable.t,v 1.4 2007/05/25 15:16:18 gellyfish Exp $
 
 
-use Test::More tests => 15;
+use Test::More tests => 16;
 use strict;
 
 use vars qw($DEBUGGING);
@@ -216,3 +216,29 @@ eval
 };
 
 ok(!$@,'Variables work in tests');
+
+$xml =<<EOXML;
+<?xml version="1.0" encoding="iso-8859-1"?>
+<test/>
+EOXML
+
+$stylesheet =<<'EOXSLT';
+<?xml version="1.0" encoding="iso-8859-1"?>
+<xsl:stylesheet version="1.0"
+xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
+<xsl:param name="x" select="'foo'"/>
+<xsl:template match="/">
+<test><xsl:value-of select="$x"/></test>
+</xsl:template>
+</xsl:stylesheet>
+EOXSLT
+
+eval
+{
+   my $xslt = new XML::XSLT( \$stylesheet, variables => { x => "bar" } );
+   $xslt->transform( \$xml );
+   my $out = $xslt->toString();
+   my $correct = '<test>bar</test>';
+   die "$out ne $correct" unless $out eq $correct;
+};
+ok(!$@, "ordering of parameters");

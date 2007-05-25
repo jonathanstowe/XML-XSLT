@@ -1,5 +1,5 @@
 # Test all patterns
-# $Id: pattern.t,v 1.2 2004/04/02 10:48:35 gellyfish Exp $
+# $Id: pattern.t,v 1.3 2007/05/25 15:16:18 gellyfish Exp $
 
 use strict;
 
@@ -7,7 +7,7 @@ use Test::More tests => 2;
 
 use vars qw($DEBUGGING);
 
-$DEBUGGING = 0;
+$DEBUGGING = 1;
 
 use_ok('XML::XSLT');
 
@@ -54,5 +54,5 @@ my $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
 $parser->transform(\$xml);
 my $out = $parser->toString();
 
-#print $out, "\n", $expected;
-ok(1,'');
+print $out, "\n";
+ok($out eq $expect,'');
