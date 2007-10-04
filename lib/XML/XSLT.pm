@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.32  2007/10/04 18:37:11  gellyfish
+#    updated
+#
 #    Revision 1.31  2007/05/25 15:16:18  gellyfish
 #    * Merged in some changes
 #
@@ -108,6 +111,7 @@ package XML::XSLT;
 use strict;
 
 use XML::DOM 1.25;
+use XML::DOM::XPath;
 use LWP::Simple qw(get);
 use URI;
 use Cwd;
@@ -622,6 +626,9 @@ sub open_xsl
         parser_args => { %{ $self->{PARSER_ARGS} }, %{ $args{parser_args} } },
     );
 
+
+    $self->{ORIG_XSL_DOC} = $xsl_document;
+
     $self->xsl_document($xsl_document);
 
     $self->{XSL_BASE} =
@@ -750,8 +757,8 @@ sub __preprocess_stylesheet
 
    # Why is this here when __get_first_element does, apparently, the same thing?
    # Because, in __get_stylesheet we warp the document.
-    $self->_top_xsl_node( $self->xsl_document()->getFirstChild );
     $self->__expand_xsl_includes;
+    $self->_top_xsl_node( $self->xsl_document()->getFirstChild );
     $self->__extract_top_level_variables;
 
     $self->__add_default_templates;
@@ -946,28 +953,33 @@ sub __expand_xsl_includes
 {
     my $self = shift;
 
-    foreach my $include_node ( $self->_top_xsl_node()
+    $self->debug("IN INCLUDE");
+    $self->debug($self->xsl_ns());
+    foreach my $include_node ( $self->xsl_document()   # _top_xsl_node()
         ->getElementsByTagName( $self->xsl_ns() . "include" ) )
     {
         my $include_file = $include_node->getAttribute('href');
 
+        $self->debug("including - $include_file");
         die "include tag carries no selection!"
           unless defined $include_file;
 
         my $include_doc;
+        my $tmp_doc;
         eval {
-            my $tmp_doc =
+            $tmp_doc =
               $self->__open_by_filename( $include_file, $self->{XSL_BASE} );
-            $include_doc = $tmp_doc->getFirstChild->cloneNode(1);
-            $tmp_doc->dispose;
+            $include_doc = $tmp_doc->getFirstChild();
+            #$tmp_doc->removeChild($include_doc);
         };
         die "parsing of $include_file failed: $@"
           if $@;
 
         $self->debug("inserting `$include_file'");
-        $include_doc->setOwnerDocument( $self->xsl_document() );
-        $self->_top_xsl_node()->replaceChild( $include_doc, $include_node );
-        $include_doc->dispose;
+        #$self->xsl_document()->setOwnerDocument($include_doc);
+        $include_doc->setOwnerDocument( $self->{ORIG_XSL_DOC} );
+        $self->xsl_document()->replaceChild( $include_doc, $include_node );
+        #$include_doc->dispose;
     }
 }
 
@@ -2894,6 +2906,8 @@ sub _get_node_set
     $self->{VARIABLES} ||= {};
     $variables ||= {};
 
+    ## JNS name() stuff here ?
+    #
 	 %{$variables} = (%{$self->{VARIABLES}}, %{$variables});
     $self->debug(qq{getting node-set "$path" from "$current_path"});
 
@@ -4254,11 +4268,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.31 $
+Revision: $Revision: 1.32 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2007/05/25 15:16:18 $
+      On: $Date: 2007/10/04 18:37:11 $
 
-  RCS ID: $Id: XSLT.pm,v 1.31 2007/05/25 15:16:18 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.32 2007/10/04 18:37:11 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
