@@ -1,5 +1,5 @@
 # Test all patterns
-# $Id: pattern.t,v 1.4 2007/10/05 13:44:04 gellyfish Exp $
+# $Id: pattern.t,v 1.5 2007/10/05 13:55:48 gellyfish Exp $
 
 use strict;
 
@@ -55,8 +55,8 @@ $parser->transform(\$xml);
 my $out = $parser->toString();
 
 
-SKIP:
+TODO:
 {
-   skip "pattern selector not working", 1;
+   local $TODO = "pattern selector not working";
    ok($out eq $expect,'pattern template selector');
 }
