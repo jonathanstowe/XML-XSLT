@@ -6,6 +6,9 @@
 # and Egon Willighagen, egonw@sci.kun.nl
 #
 #    $Log: XSLT.pm,v $
+#    Revision 1.33  2008/01/30 13:49:48  gellyfish
+#    Interim release
+#
 #    Revision 1.32  2007/10/04 18:37:11  gellyfish
 #    updated
 #
@@ -1865,7 +1868,7 @@ sub __open_by_filename
 
     my $file = get( URI->new_abs( $filename, $base ) );
 
-    return $self->{PARSER}->parse( $file, %{ $self->{PARSER_ARGS} } );
+    return $self->{PARSER}->parse( $file, defined $self->{PARSER_ARGS} ? %{ $self->{PARSER_ARGS} } : undef );
 }
 
 sub _match_template
@@ -4268,11 +4271,11 @@ L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
 =cut
 
 Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.32 $
+Revision: $Revision: 1.33 $
    Label: $Name:  $
 
 Last Chg: $Author: gellyfish $ 
-      On: $Date: 2007/10/04 18:37:11 $
+      On: $Date: 2008/01/30 13:49:48 $
 
-  RCS ID: $Id: XSLT.pm,v 1.32 2007/10/04 18:37:11 gellyfish Exp $
+  RCS ID: $Id: XSLT.pm,v 1.33 2008/01/30 13:49:48 gellyfish Exp $
     Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $

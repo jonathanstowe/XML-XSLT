@@ -31,7 +31,7 @@ EOXSL
 use XML::XSLT qw(serve);
 
 my $xslt = XML::XSLT->new($xsl);
-my $result = $xslt->serve($xml);
+my $result = $xslt->serve(\$xml);
 like($result, qr/Text outside/, "got text outside markup");
 like($result, qr/Text inside/, "got text inside markup");
 unlike($result, qr(<nitf/>), "didn't get empty tag");
