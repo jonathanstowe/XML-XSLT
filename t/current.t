@@ -26,7 +26,8 @@ EOXSL
 
 use XML::XSLT qw(serve);
 
-$xslt = XML::XSLT->new($xsl);
+$xslt = XML::XSLT->new($xsl,debug => 0);
 my $result = $xslt->transform($xml)->toString;
+
 like($result, qr/Text outside/, "got text outside markup");
 like($result, qr/<p>Text inside/, "got text inside markup");
