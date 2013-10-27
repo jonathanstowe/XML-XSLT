@@ -3183,47 +3183,71 @@ sub __parent__
 
 sub __indexed_element__
 {
-    my ( $self, $element, $index, $path, $node, $silent, $deep ) = @_;
-    $index ||= 0;
-    $deep  ||= "";    # False #
+   my ( $self, $element, $index, $path, $node, $silent, $deep ) = @_;
+   $index ||= 0;
+   $deep  ||= "";    # False #
 
-    if ( $index =~ /^first\s*\(\)/ )
-    {
-        $index = 0;
-    }
-    elsif ( $index =~ /^last\s*\(\)/ )
-    {
-        $index = -1;
-    }
-    else
-    {
-        $index--;
-    }
+   my $xpath;
 
-    my @list = $node->getElementsByTagName( $element, $deep );
+   $self->debug("got element $element and index $index at $path");
+   if ( $index =~ /^\d+$/ )
+   {
+      $self->debug("got a numeric index");
+      $index--;
+   }
+   else
+   {
+      $self->debug("index is an expression");
+      if ( $index =~ /^first\s*\(\)/ )
+      {
+         $index = 0;
+      }
+      elsif ( $index =~ /^last\s*\(\)/ )
+      {
+         $index = -1;
+      }
+      elsif ( $index =~ /attribute::(\S+)/ )
+      {
+          $xpath = "$element\[\@$1\]";
+          $index = 0;
+      }
+   }
 
-    if (@list)
-    {
-        $node = $list[$index];
-    }
-    else
-    {
-        $node = "";
-    }
+   my @list;
+   if ( $xpath )
+   {
+       $self->debug("tring with expression $xpath");
+       @list = $node->findnodes($xpath);
+   }
+   else
+   {
+       @list = $node->getElementsByTagName( $element, $deep );
+   }
 
-    $self->_indent();
-    if ($node)
-    {
-        $node = &__get_node_set__( $self, $path, [$node], $silent );
-    }
-    else
-    {
-        $self->debug("failed!");
-        $node = [];
-    }
-    $self->_outdent();
+   $self->debug( "got " . @list . " candidate elements" );
+   if (@list)
+   {
+      $self->debug("Getting index item $index");
+      $node = $list[$index];
+   }
+   else
+   {
+      $node = "";
+   }
 
-    return $node;
+   $self->_indent();
+   if ($node)
+   {
+      $node = &__get_node_set__( $self, $path, [$node], $silent );
+   }
+   else
+   {
+      $self->debug("failed!");
+      $node = [];
+   }
+   $self->_outdent();
+
+   return $node;
 }
 
 sub __element__
