@@ -3349,7 +3349,7 @@ sub _attribute_value_of
         #$value =~ s/(\*|\$|\@|\&|\?|\+|\\)/\\$1/g;
         $value =~ s/(\*|\?|\+)/\\$1/g;
         study($value);
-        while ( $value =~ /\G[^\\]?\{(.*?[^\\]?)\}/ )
+        while ( $value =~ /\G[^\\]*\{(.*?[^\\]*)\}/ )
         {
             my $node =
               $self->_get_node_set( $1, $self->xml_document(),
@@ -3359,11 +3359,11 @@ sub _attribute_value_of
                 $self->_indent();
                 my $text = $self->__string__( $$node[0] );
                 $self->_outdent();
-                $value =~ s/(\G[^\\]?)\{(.*?)[^\\]?\}/$1$text/;
+                $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1$text/;
             }
             else
             {
-                $value =~ s/(\G[^\\]?)\{(.*?)[^\\]?\}/$1/;
+                $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1/;
             }
         }
 
