@@ -3099,7 +3099,7 @@ sub __try_a_step__
 
     }
     elsif ( $path =~
-s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
+s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(.+?)\]//
       )
     {
 
@@ -3119,7 +3119,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
         return &__element__( $self, $1, $path, $node, $silent, "deep" );
 
     }
-    elsif ( $path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]// )
+    elsif ( $path =~ s/^\/(child\:\:|)(\*|[\w\.\:\-]+)\[(.+?)\]// )
     {
 
         # /elem[n] #
