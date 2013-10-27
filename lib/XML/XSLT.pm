@@ -4,103 +4,7 @@
 #
 # By Geert Josten, gjosten@sci.kun.nl
 # and Egon Willighagen, egonw@sci.kun.nl
-#
-#    $Log: XSLT.pm,v $
-#    Revision 1.34  2008/11/21 15:45:13  gellyfish
-#    Made current() work
-#
-#    Revision 1.33  2008/01/30 13:49:48  gellyfish
-#    Interim release
-#
-#    Revision 1.32  2007/10/04 18:37:11  gellyfish
-#    updated
-#
-#    Revision 1.31  2007/05/25 15:16:18  gellyfish
-#    * Merged in some changes
-#
-#    Revision 1.30  2006/11/17 21:16:45  gellyfish
-#    Check in interim fix for literal variable at top level
-#
-#    Revision 1.29  2005/12/08 12:53:39  gellyfish
-#    Added patch from andy_bach@wiwb.usourts.gov to fix warning in __evaluate_test__
-#
-#    Revision 1.28  2004/06/02 07:48:34  gellyfish
-#    Fixed the check if $args{Source} is an 'XML::DOM::Document' from John
-#    Bywater.
-#
-#    Revision 1.27  2004/04/02 10:48:35  gellyfish
-#    Fixing disposal bug
-#
-#    Revision 1.26  2004/02/20 09:24:26  gellyfish
-#    * Fixes to variables
-#
-#    Revision 1.25  2004/02/19 08:38:40  gellyfish
-#    * Fixed overlapping attribute-sets
-#    * Allow multiple nodes for processing-instruction() etc
-#    * Added test for for-each
-#
-#    Revision 1.24  2004/02/18 08:34:38  gellyfish
-#    * Fixed select on "comment()" "processing-instruction()" etc
-#    * Added test for select
-#
-#    Revision 1.23  2004/02/17 10:06:12  gellyfish
-#    * Added test for xsl:copy
-#
-#    Revision 1.22  2004/02/17 08:52:29  gellyfish
-#    * 'use-attribute-sets' works in xsl:copy and recursively
-#
-#    Revision 1.21  2004/02/16 10:29:20  gellyfish
-#    * Fixed variable implementation to handle non literals
-#    * refactored test implementation
-#    * added tests
-#
-#    Revision 1.20  2003/06/24 16:34:51  gellyfish
-#    * Allowed both name and match attributes in templates
-#    * Lost redefinition warning with perl 5.8
-#
-#    Revision 1.19  2002/02/18 09:05:14  gellyfish
-#    Refactoring
-#
-#    Revision 1.18  2002/01/16 21:05:27  gellyfish
-#    * Added the manpage as an example
-#    * Started to properly implement omit-xml-declaration
-#
-#    Revision 1.17  2002/01/13 10:35:00  gellyfish
-#    Updated pod
-#
-#    Revision 1.16  2002/01/09 09:17:40  gellyfish
-#    * added test for <xsl:text>
-#    * Stylesheet whitespace stripping as per spec and altered tests ...
-#
-#    Revision 1.15  2002/01/08 10:11:47  gellyfish
-#    * First cut at cdata-section-element
-#    * test for above
-#
-#    Revision 1.14  2001/12/24 16:00:19  gellyfish
-#    * Version released to CPAN
-#
-#    Revision 1.13  2001/12/20 09:21:42  gellyfish
-#    More refactoring
-#
-#    Revision 1.12  2001/12/19 21:06:31  gellyfish
-#    * Some refactoring and style changes
-#
-#    Revision 1.11  2001/12/19 09:11:14  gellyfish
-#    * Added more accessors for object attributes
-#    * Fixed potentially broken usage of $variables in _evaluate_template
-#
-#    Revision 1.10  2001/12/18 09:10:10  gellyfish
-#    Implemented attribute-sets
-#
-#    Revision 1.9  2001/12/17 22:32:12  gellyfish
-#    * Added Test::More to Makefile.PL
-#    * Added _indent and _outdent methods
-#    * Placed __get_attribute_sets in transform()
-#
-#    Revision 1.8  2001/12/17 11:32:08  gellyfish
-#    * Rolled in various patches
-#    * Added new tests
-#
+# and Jonathan Stowe <jns@gellyfish.co.uk>
 #
 ###############################################################################
 
@@ -115,6 +19,7 @@ package XML::XSLT;
 ######################################################################
 
 use strict;
+use warnings;
 
 use XML::DOM 1.25;
 use XML::DOM::XPath;
@@ -1602,6 +1507,7 @@ sub toString
     my $self = $_[0];
 
     local $^W;
+    no warnings 'redefine';
     local *XML::DOM::Text::print = \&_my_print_text;
 
     my $string = '';
@@ -4213,6 +4119,15 @@ General information, bug reporting tools, the latest version, mailing
 lists, etc. can be found at the XML::XSLT homepage:
 
   http://xmlxslt.sourceforge.net/
+  
+The sourcecode however has been migrated to Github at:
+
+  https://github.com/jonathanstowe/XML-XSLT
+
+And bug reports are probably best reported to
+
+   https://rt.cpan.org/Dist/Display.html?Queue=XML-XSLT
+
 
 =head1 DEPRECATIONS
 
@@ -4283,7 +4198,8 @@ use B<serve()> instead.
 
 =head1 BUGS
 
-Yes.
+Yes.  Please see the README for details on the best ways to report bugs
+or suggest patches.
 
 =head1 HISTORY
 
@@ -4291,11 +4207,16 @@ Geert Josten and Egon Willighagen developed and maintained XML::XSLT
 up to version 0.22.  At that point, Mark Hershberger started moving
 the project to Sourceforge and began working on it with Bron Gondwana.
 
+Since just prior to 0.51 the code was moved to Github to aid collaborative
+development
+
 =head1 LICENCE
 
-Copyright (c) 1999 Geert Josten & Egon Willighagen. All Rights
-Reserverd.  This module is free software, and may be distributed under
-the same terms and conditions as Perl.
+Copyright (c) 1999 Geert Josten & Egon Willighagen. 
+          (c) 2001-2013 Jonathan Stowe
+
+All Rights Reserved.  This module is free software, and may be distributed
+under the same terms and conditions as Perl.
 
 =head1 AUTHORS
 
@@ -4307,20 +4228,10 @@ Mark A. Hershberger <mah@everybody.org>
 
 Bron Gondwana <perlcode@brong.net>
 
-Jonathan Stowe <jns@gellyfish.com>
+Jonathan Stowe <jns@gellyfish.co.uk>
 
 =head1 SEE ALSO
 
-L<XML::DOM>, L<LWP::Simple>, L<XML::Parser>
+L<XML::DOM>, L<XML::DOM::XPath>, L<LWP::Simple>, L<XML::Parser>
 
 =cut
-
-Filename: $RCSfile: XSLT.pm,v $
-Revision: $Revision: 1.34 $
-   Label: $Name:  $
-
-Last Chg: $Author: gellyfish $ 
-      On: $Date: 2008/11/21 15:45:13 $
-
-  RCS ID: $Id: XSLT.pm,v 1.34 2008/11/21 15:45:13 gellyfish Exp $
-    Path: $Source: /home/jonathan/devel/modules/xmlxslt/xmlxslt/XML-XSLT/lib/XML/XSLT.pm,v $
