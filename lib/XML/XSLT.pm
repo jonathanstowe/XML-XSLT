@@ -3611,7 +3611,7 @@ sub __evaluate_test__
 		  $self ->debug("Attribute: $1");
         $content = $node->getAttribute($1);
     }
-    elsif ( $lhs =~ /^([\$\w\.\:\-]+)$/ )
+    elsif ( $lhs =~ /^([\$\w\.\:\-\/]+)$/ )
     {
 		  $self ->debug("Path: $1");
         my $test_path = $1;
