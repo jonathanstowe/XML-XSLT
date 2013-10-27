@@ -131,7 +131,7 @@ use constant NS_XHTML => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.50_2';
+$VERSION = '0.50_3';
 
 @ISA       = qw( Exporter );
 @EXPORT_OK = qw( &transform &serve );
@@ -1792,69 +1792,69 @@ sub dispose
 
 sub __open_document
 {
-    my $self = shift;
-    my %args = @_;
-    %args = ( %{ $self->{PARSER_ARGS} }, %args );
-    my $doc;
+   my $self = shift;
+   my %args = @_;
+   %args = ( %{ $self->{PARSER_ARGS} }, %args );
+   my $doc;
 
-    $self->debug("opening document");
+   $self->debug("opening document");
 
-    eval {
-        my $ref = ref( $args{Source} );
-        if (
-               !$ref
-            && length $args{Source} < 255 && index("\n",$args{Source}) == -1
-            && (   -f $args{Source}
-                || lc( substr( $args{Source}, 0, 5 ) ) eq 'http:'
-                || lc( substr( $args{Source}, 0, 6 ) ) eq 'https:'
-                || lc( substr( $args{Source}, 0, 4 ) ) eq 'ftp:'
-                || lc( substr( $args{Source}, 0, 5 ) ) eq 'file:' )
-          )
-        {
+   eval {
+      my $ref = ref( $args{Source} );
+      if ( !$ref )
+      {
+         if (
+               length $args{Source} < 255
+            && $args{Source} !~ /\n/
+            && ( -f $args{Source}
+               || $args{Source} =~ /^(https?|ftp|file):/i )
+           )
+         {
 
             # Filename
             $self->debug("Opening URL");
             $doc = $self->__open_by_filename( $args{Source}, $args{base} );
-        }
-        elsif ( !$ref )
-        {
+         }
+         else
+         {
 
             # String
             $self->debug("Opening String");
             $doc = $self->{PARSER}->parse( $args{Source} );
-        }
-        elsif ( $ref eq "SCALAR" )
-        {
+         }
+      }
+      elsif ( $ref eq "SCALAR" )
+      {
 
-            # Stringref
-            $self->debug("Opening Stringref");
-            $doc = $self->{PARSER}->parse( ${ $args{Source} } );
-        }
-        elsif ( $args{Source}->isa( 'XML::DOM::Document' ) )
-        {
+         # Stringref
+         $self->debug("Opening Stringref");
+         $doc = $self->{PARSER}->parse( ${ $args{Source} } );
+      }
+      elsif ( $args{Source}->isa('XML::DOM::Document') )
+      {
 
-            # DOM object
-            $self->debug("Opening XML::DOM");
-            $doc = $args{Source};
-        }
-        elsif ( $ref eq "GLOB" )
-        {    # This is a file glob
-            $self->debug("Opening GLOB");
-            my $ioref = *{ $args{Source} }{IO};
-            $doc = $self->{PARSER}->parse($ioref);
-        }
-        elsif ( UNIVERSAL::isa( $args{Source}, 'IO::Handle' ) )
-        {    # IO::Handle
-            $self->debug("Opening IO::Handle");
-            $doc = $self->{PARSER}->parse( $args{Source} );
-        }
-        else
-        {
-            $doc = undef;
-        }
-    };
-    die "Error while parsing: $@\n" . $args{Source} if $@;
-    return $doc;
+         # DOM object
+         $self->debug("Opening XML::DOM");
+         $doc = $args{Source};
+      }
+      elsif ( $ref eq "GLOB" )
+      {    # This is a file glob
+         $self->debug("Opening GLOB");
+         my $ioref = *{ $args{Source} }{IO};
+         $doc = $self->{PARSER}->parse($ioref);
+      }
+      elsif ( UNIVERSAL::isa( $args{Source}, 'IO::Handle' ) )
+      {    # IO::Handle
+         $self->debug("Opening IO::Handle");
+         $doc = $self->{PARSER}->parse( $args{Source} );
+      }
+      else
+      {
+         $doc = undef;
+      }
+   };
+   die "Error while parsing: $@\n" . $args{Source} if $@;
+   return $doc;
 }
 
 # private auxiliary function #
