@@ -2064,6 +2064,7 @@ sub _evaluate_test
         my $node =
           $self->_get_node_set( $path, $self->xml_document(),
             $current_xml_selection_path, $current_xml_node, $variables );
+        $self->_outdent();
         if (@$node)
         {
             $current_xml_node = $$node[0];
@@ -2072,7 +2073,6 @@ sub _evaluate_test
         {
             return "";
         }
-        $self->_outdent();
     }
     else
     {
@@ -2085,6 +2085,7 @@ sub _evaluate_test
         if (@$node)
         {
             $self->debug("path exists!");
+            $self->_outdent();
             return "true";
         }
         else
@@ -2321,7 +2322,7 @@ qq{applying templates on all children of "$current_xml_selection_path":}
         $count++;
     }
 
-    $self->_indent();
+    $self->_outdent();
 }
 
 sub _for_each
@@ -2839,7 +2840,9 @@ sub __string__
 
         if ( $ref eq "ARRAY" )
         {
-            return $self->__string__( $$node[0], $depth );
+            my $str = $self->__string__( $$node[0], $depth );
+            $self->_outdent();
+            return $str;
         }
         else
         {
@@ -2940,12 +2943,14 @@ sub _get_node_set
             {
 
                 # node-set array-ref
+                $self->_outdent();
                 return $$variables{$varname};
             }
             elsif ( ref( $$variables{$varname} ) eq 'XML::DOM::NodeList' )
             {
 
                 # node-set nodelist
+                $self->_outdent();
                 return [ @{ $$variables{$varname} } ];
             }
             elsif (
@@ -2953,11 +2958,13 @@ sub _get_node_set
             {
 
                 # node-set documentfragment
+                $self->_outdent();
                 return [ $$variables{$varname}->getChildNodes ];
             }
             else
             {
                 # string or number?
+                $self->_outdent();
                 return [ $self->xml_document()
                       ->createTextNode( $$variables{$varname} ) ];
             }
@@ -2965,12 +2972,14 @@ sub _get_node_set
         else
         {
             # var does not exist
+            $self->_outdent();
             return [];
         }
     }
     elsif ( $path eq $current_path || $path eq 'self::node()' )
     {
         $self->debug("direct hit!");
+        $self->_outdent();
         return [$current_node];
     }
     else
@@ -3096,6 +3105,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # //elem[n] #
         $self->debug(qq{getting deep indexed element `$1' `$2' ("$path")});
+        $self->_outdent();
         return &__indexed_element__( $self, $1, $2, $path, $node, $silent,
             "deep" );
 
@@ -3105,6 +3115,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # //elem #
         $self->debug(qq{getting deep element `$1' ("$path")});
+        $self->_outdent();
         return &__element__( $self, $1, $path, $node, $silent, "deep" );
 
     }
@@ -3113,6 +3124,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /elem[n] #
         $self->debug(qq{getting indexed element `$2' `$3' ("$path")});
+        $self->_outdent();
         return &__indexed_element__( $self, $2, $3, $path, $node, $silent );
 
     }
@@ -3121,6 +3133,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /text() #
         $self->debug(qq{getting text ("$path")});
+        $self->_outdent();
         return &__get_nodes__( $self, TEXT_NODE, $path, $node, $silent );
 
     }
@@ -3129,6 +3142,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /processing-instruction() #
         $self->debug(qq{getting processing instruction ("$path")});
+        $self->_outdent();
         return $self->__get_nodes__(PROCESSING_INSTRUCTION_NODE, 
 					                     $path, 
 												$node,
@@ -3140,6 +3154,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /comment() #
         $self->debug(qq{getting comment ("$path")});
+        $self->_outdent();
         return &__get_nodes__( $self, COMMENT_NODE, $path, $node, $silent );
 
     }
@@ -3148,6 +3163,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
 
         # /elem #
         $self->debug(qq{getting element `$2' ("$path")});
+        $self->_outdent();
         return &__element__( $self, $2, $path, $node, $silent );
 
     }
@@ -3155,6 +3171,7 @@ s/^\/descendant\-or\-self\:\:node\(\)\/(child\:\:|)(\*|[\w\.\:\-]+)\[(\S+?)\]//
     {
         $self->warn(
             "get-node-from-path: Don't know what to do with path $path !!!");
+        $self->_outdent();
         return [];
     }
 }
