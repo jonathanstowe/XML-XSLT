@@ -1955,12 +1955,49 @@ sub __template_matches__
 sub _evaluate_test
 {
     my ( $self, $test, $current_xml_node, $current_xml_selection_path,
-        $variables )
-      = @_;
-
-    $self->debug("Doing test $test");
+        $variables ) = @_;
 
     $self->_indent();
+    my $rc = 0;
+
+    my $cond;
+
+    foreach my $test_part ( split /\s+(or|and)\s+/, $test )
+    {
+        if ( $test_part =~ /(or|and)/i )
+        {
+            $cond = $1;
+        }
+        else
+        {
+            my $one_rc = $self->_evaluate_test_one($test_part,$current_xml_node, $current_xml_selection_path, $variables );
+
+            if (!$cond)
+            {
+                $rc = $one_rc;
+            }
+            elsif( $cond eq 'or' )
+            {
+                $rc |= $one_rc;
+            }
+            elsif( $cond eq 'and' )
+            {
+                $rc &= $one_rc;
+            }
+        }
+    }
+
+    $self->_outdent();
+    return $rc;
+}
+
+sub _evaluate_test_one
+{
+    my ( $self, $test, $current_xml_node, $current_xml_selection_path, $variables )
+      = @_;
+
+    $self->_indent();
+    $self->debug("processing test $test");
 
     my $rc = 0;
 
@@ -1976,7 +2013,7 @@ sub _evaluate_test
             $current_xml_selection_path, $current_xml_node, $variables );
         if (@$node)
         {
-            $rc = $self->_evaluate_test($test,$node->[0], $current_xml_selection_path, $variables);
+            $rc = $self->_evaluate_test_one($test,$node->[0], $current_xml_selection_path, $variables);
         }
     }
     else
@@ -3710,7 +3747,7 @@ sub __evaluate_test__
        $self->debug("no match for test [$test]");
        return '';
     }
-	 $self->debug("Test LHS: $lhs");
+	$self->debug("Test LHS: $lhs");
     if ( $lhs =~ /^\@([\w\.\:\-]+)$/ )
     {
 		  $self ->debug("Attribute: $1");
@@ -3731,7 +3768,7 @@ sub __evaluate_test__
     else
     {
         $self->debug("no match for test");
-        return "";
+        return "0";
     }
     my $numeric = ($content =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0);
 
