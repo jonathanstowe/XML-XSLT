@@ -897,73 +897,74 @@ sub __expand_xsl_includes
 # private auxiliary function #
 sub __extract_top_level_variables
 {
-    my $self = $_[0];
+   my $self = $_[0];
 
-    $self->debug("Extracting variables");
-    foreach my $child ( $self->xsl_document()->getChildNodes() )
-    {
-		  next unless $child->getNodeType() == ELEMENT_NODE;
-		  my $name = $child->getNodeName();
-        my ( $ns, $tag ) = split( ':', $name );
+   $self->debug("Extracting variables");
+   foreach my $child ( $self->xsl_document()->getChildNodes() )
+   {
+      next unless $child->getNodeType() == ELEMENT_NODE;
+      my $name = $child->getNodeName();
+      my ( $ns, $tag ) = split( ':', $name );
 
-		  $self->debug("$ns $tag");
-        if ( 1 ) 
-					 
-#					 ( $tag eq '' && $self->xsl_ns() eq '' )
-#            || $self->xsl_ns() eq $ns )
-        {
-            $tag = $ns if $tag eq '';
+      $self->debug("$ns $tag");
+        #					 ( $tag eq '' && $self->xsl_ns() eq '' )
+        #            || $self->xsl_ns() eq $ns )
+      if (1)
+      {
+         $tag = $ns if $tag eq '';
 
-				$self->debug($tag);
-            if ( $tag eq 'variable' || $tag eq 'param' )
+         $self->debug($tag);
+         if ( $tag eq 'variable' || $tag eq 'param' )
+         {
+
+            my $name = $child->getAttribute("name");
+            if ( exists $self->{VARIABLES}->{$name} )
+            {
+               $self->debug(
+                  "$tag $name already set to '$self->{VARIABLES}->{$name}'");
+            }
+            elsif ($name)
+            {
+               $self->debug("got $tag called $name");
+               my $value = $child->getAttributeNode("select");
+               if ( !defined $value )
+               {
+                   $self->debug("evaluating variable from child nodes");
+                  if ( $child->getChildNodes()->getLength() )
+                  {
+                     my $result = XML::DOM::DocumentFragment->new();
+
+                     #$self->xml_document()->createDocumentFragment;
+                     $self->_evaluate_template( $child, $self->xml_document(),
+                        '', $result );
+                     $value = $self->__string__($result);
+                     $result->dispose();
+                  }
+               }
+               else
+               {
+                   $self->debug("Trying to get a literal");
+                  $value = $value->getValue();
+                  if ( $value =~ /^'([^']*)$'/m )
+                  {
+                     $value = $1;
+                  }
+               }
+               if ( defined $value )
+               {
+                  $self->debug("Setting $tag `$name' = `$value'");
+                  $self->{VARIABLES}->{$name} = $value;
+               }
+            }
+            else
             {
 
-                my $name = $child->getAttribute("name");
-                if ( exists $self->{VARIABLES}->{$name} )
-                {
-                   $self->debug("$tag $name already set to '$self->{VARIABLES}->{$name}'");
-                }
-                elsif ($name)
-                {
-						  $self->debug("got $tag called $name");
-                    my $value = $child->getAttributeNode("select");
-                    if ( !defined $value )
-                    {
-								if ( $child->getChildNodes()->getLength() )
-								{
-                           my $result = XML::DOM::DocumentFragment->new();
-                              #$self->xml_document()->createDocumentFragment;
-                           $self->_evaluate_template( $child,
-                                                      $self->xml_document(), 
-																		'', 
-																		$result );
-                           $value = $self->__string__($result);
-                           $result->dispose();
-								}
-                    }
-                    else
-                    {
-							   $value = $value->getValue();
-                        if ( $value =~ /'(.*)'/ )
-                        {
-                            $value = $1;
-                        }
-                    }
-						  unless ( !defined $value ) 
-						  {
-                       $self->debug("Setting $tag `$name' = `$value'");
-                       $self->{VARIABLES}->{$name} = $value;
-						  }
-                }
-                else
-                {
-
-                    # Required, so we die (http://www.w3.org/TR/xslt#variables)
-                    die "$tag tag carries no name!";
-                }
+               # Required, so we die (http://www.w3.org/TR/xslt#variables)
+               die "$tag tag carries no name!";
             }
-        }
-    }
+         }
+      }
+   }
 }
 
 # private auxiliary function #
@@ -2049,7 +2050,7 @@ sub _evaluate_template
         }
         elsif ( $node_type == CDATA_SECTION_NODE )
         {
-            my $text = $self->xml_document()->createTextNode( $child->getData );
+            my $text = $self->_create_text_node( $child->getData );
             $self->_add_node( $text, $current_result_node );
         }
         elsif ( $node_type == ENTITY_REFERENCE_NODE )
@@ -2686,7 +2687,7 @@ sub _value_of
 
         if ( $text ne '' )
         {
-            my $node = $self->xml_document()->createTextNode($text);
+            my $node = $self->_create_text_node($text);
             if ( $xsl_node->getAttribute('disable-output-escaping') eq 'yes' )
             {
                 $self->debug("disabling output escaping");
@@ -2705,6 +2706,14 @@ sub _value_of
               . $self->xsl_ns()
               . q{value-of>} );
     }
+}
+
+# Convenience as we do this a lot.
+sub _create_text_node
+{
+    my ( $self, $text ) = @_;
+
+    return $self->xml_document()->createTextNode($text);
 }
 
 sub __strip_node_to_text__
@@ -2809,148 +2818,328 @@ sub _move_node
     $parent->appendChild($node);
 }
 
+# returns an array ref of nodes
 sub _get_node_set
 {
-    my ( $self, $path, $root_node, $current_path, $current_node, $variables,
-        $silent )
-      = @_;
-    $current_path ||= "/";
-    $current_node ||= $root_node;
-    $silent       ||= 0;
+   my ( $self, $path, $root_node, $current_path, $current_node, $variables,
+      $silent )
+     = @_;
+   $current_path ||= "/";
+   $current_node ||= $root_node;
+   $silent       ||= 0;
 
-    $self->{VARIABLES} ||= {};
-    $variables ||= {};
+   $self->{VARIABLES} ||= {};
+   $variables ||= {};
 
-    ## JNS name() stuff here ?
-    #
-	 %{$variables} = (%{$self->{VARIABLES}}, %{$variables});
-    $self->debug(qq{getting node-set "$path" from "$current_path"});
+   %{$variables} = ( %{ $self->{VARIABLES} }, %{$variables} );
+   $self->debug(qq{getting node-set "$path" from "$current_path"});
 
-    $self->_indent();
+   $self->_indent();
 
-    # expand abbriviated syntax
-    $path =~ s/current\(\s*\)/./g;
-    $path =~ s/\@/attribute\:\:/g;
-    $path =~ s/\.\./parent\:\:node\(\)/g;
-    $path =~ s/\./self\:\:node\(\)/g;
-    $path =~ s/\/\//\/descendant\-or\-self\:\:node\(\)\//g;
+   $path = $self->_expand_abbreviations($path);
 
-    #$path =~ s/\/[^\:\/]*?\//attribute::/g;
+   my $return_nodes = [];
 
-    if ( $path =~ /^\$([\w\.\-]+)$/ )
-    {
-        my $varname = $1;
-		  $self->debug("looking for variable $varname");
-		  $self->debug(join ' ', keys %{$variables});
-        my $var     = $$variables{$varname};
-        if ( defined $var )
-        {
-            if ( ref( $$variables{$varname} ) eq 'ARRAY' )
-            {
+   if ( my $varname = $self->_variable_name($path) )
+   {
+       $self->debug('got a variable');
+       $return_nodes = $self->_expand_variable($varname, $variables);
+   }
+   elsif ( $path =~ /^'([^']*)'$/ )
+   {
+       # this is for the convenience of _process arguments
+       $self->debug("got a literal '$1'");
+       $return_nodes = [ $self->_create_text_node($1) ];
+   }
+   elsif ( $path eq $current_path || $path eq 'self::node()' )
+   {
+      $self->debug("direct hit!");
+      $return_nodes = [$current_node];
+   }
+   else
+   {
 
-                # node-set array-ref
-                $self->_outdent();
-                return $$variables{$varname};
-            }
-            elsif ( ref( $$variables{$varname} ) eq 'XML::DOM::NodeList' )
-            {
+      # open external documents first #
+      if ($path =~ /^\s*document\s*\(["'](.*?)["']\s*(,\s*(.*)\s*){0,1}\)\s*(.*)$/)
+      {
+         my $filename = $1;
+         my $sec_arg  = $3;
+         $path = ( $4 || "" );
 
-                # node-set nodelist
-                $self->_outdent();
-                return [ @{ $$variables{$varname} } ];
-            }
-            elsif (
-                ref( $$variables{$varname} ) eq 'XML::DOM::DocumentFragment' )
-            {
+         $self->debug(qq{external selection ("$filename")!});
 
-                # node-set documentfragment
-                $self->_outdent();
-                return [ $$variables{$varname}->getChildNodes ];
-            }
-            else
-            {
-                # string or number?
-                $self->_outdent();
-                return [ $self->xml_document()
-                      ->createTextNode( $$variables{$varname} ) ];
-            }
-        }
-        else
-        {
-            # var does not exist
-            $self->_outdent();
-            return [];
-        }
-    }
-    elsif ( $path eq $current_path || $path eq 'self::node()' )
-    {
-        $self->debug("direct hit!");
-        $self->_outdent();
-        return [$current_node];
-    }
-    else
-    {
+         if ($sec_arg)
+         {
+            $self->warn("Ignoring second argument of $path");
+         }
 
-        # open external documents first #
-        if ( $path =~
-            /^\s*document\s*\(["'](.*?)["']\s*(,\s*(.*)\s*){0,1}\)\s*(.*)$/ )
-        {
-            my $filename = $1;
-            my $sec_arg  = $3;
-            $path = ( $4 || "" );
+         ($root_node) = $self->__open_by_filename( $filename, $self->{XSL_BASE} );
+      }
 
-            $self->debug(qq{external selection ("$filename")!});
+      foreach my $path_part ( split( /\|/, $path ) )
+      {
+         $self->debug("path_part: $path_part");
 
-            if ($sec_arg)
-            {
-                $self->warn("Ignoring second argument of $path");
-            }
+         if ( my @func_nodes = $self->_process_function( $path_part, $root_node, $current_path, $current_node, $variables, $silent ) )
+         {
+             push @{$return_nodes}, @func_nodes;
+         }
+         else
+         {
+         if ( $path_part =~ /^\// )
+         {
 
-            ($root_node) =
-              $self->__open_by_filename( $filename, $self->{XSL_BASE} );
-        }
-
-		  my $return_nodes = [];
-
-		  foreach my $path_part ( split(/\|/, $path ) )
-		  {
-			  $self->debug("path_part: $path_part");
-           if ( $path_part =~ /^\// )
-           {
-
-               # start from the root #
-               $current_node = $root_node;
-           }
-           elsif ( $path_part =~ /^self\:\:node\(\)\// )
-           {    #'#"#'#"
+            # start from the root #
+            $current_node = $root_node;
+         }
+         elsif ( $path_part =~ /^self\:\:node\(\)\// )
+         {    #'#"#'#"
              # remove preceding dot from './etc', which is expanded to 'self::node()'
              # at the top of this subroutine #
-               $path_part =~ s/^self\:\:node\(\)//;
-           }
-           else
-           {
+            $path_part =~ s/^self\:\:node\(\)//;
+         }
+         else
+         {
 
-               # to facilitate parsing, precede path with a '/' #
-               $path_part = "/$path_part";
-           }
+            # to facilitate parsing, precede path with a '/' #
+            $path_part = "/$path_part";
+         }
 
-           $self->debug(qq{using "$path_part":});
+         $self->debug(qq{using "$path_part":});
 
-           if ( $path_part eq '/' )
-           {
-               push @{$return_nodes}, @{$current_node};
-           }
-           else
-           {
-               push @{$return_nodes},@{$self->__get_node_set__( $path_part, 
-																	             [$current_node],
-																	             $silent )};
-           }
+         if ( $path_part eq '/' )
+         {
+            push @{$return_nodes}, @{$current_node};
+         }
+         else
+         {
+            push @{$return_nodes},
+              @{$self->__get_node_set__($path_part,[$current_node],$silent)};
+         }
+        } 
 
-           $self->_outdent();
-        }
-        return $return_nodes;
+      }
+   }
+   $self->_outdent();
+   return $return_nodes;
+}
+
+# given a path_part and the remaining arguments of _get_node_set
+# will return a set of nodes if it is indeed a function call, otherwise
+# an empty list
+
+# The builtin functions are implemented as _XSLT_FUNC_<func_name> and are
+# passed $root_node, $current_path, $current_node, $variables and a list of
+# arguments which are themselves array refs of nodes that will have been expanded
+# from _get_node_list.
+#
+sub _process_function
+{
+    my ( $self, $path_part, $root_node, $current_path, $current_node, $variables, $silent ) = @_;
+   my @nodes;
+
+   $self->_indent();
+   $self->debug("check to see if we have a function");
+   if ( $path_part =~ /^([a-z-]+)\(\s*(.*)\s*\)/ )
+   {
+       $self->debug("'$path_part' likes like a function call");
+
+       my $func = $1;
+       my $args = $2;
+
+       my $meth_name = "_XSLT_FUNC_$func";
+       $meth_name =~ s/-/_/g;
+
+       if ( $self->can($meth_name ) )
+       {
+           $self->debug("got implementation for $func()");
+           my @args = $self->_process_function_arguments($args,$root_node, $current_path, $current_node, $variables);
+           @nodes = $self->$meth_name($root_node, $current_path, $current_node, $variables, @args);
+       }
+       else
+       {
+           $self->debug("$func() either invalid or not implemented");
+       }
+
+   }
+
+   $self->_outdent();
+
+    return @nodes;
+}
+
+# _process_function_arguments takes a string representing the arguments
+# and $root_node, $current_path, $current_node, $variables, splits the
+# arguments on comma and whitespace and processes each resulting "path"
+# with _get_node_list to derive a list of array refs of nodes that are to be
+# passed to the function implementation
+#
+
+sub _process_function_arguments
+{
+    my ( $self, $args, $root_node, $current_path, $current_node, $variables ) = @_;
+
+    my @res;
+
+    $self->_indent();
+    $self->debug("processing args");
+    foreach my $arg ( split /\s*,\s*/, $args )
+    {
+        $self->debug("Going to get node set for $arg");
+        push @res, $self->_get_node_set($arg, $root_node, $current_path, $current_node, $variables);
     }
+
+    $self->_outdent();
+
+    return @res;
+}
+
+# move these elsewhere when we are done
+
+sub _XSLT_FUNC_concat
+{
+    my ( $self, $root_node, $current_path, $current_node, $variables, @args ) = @_;
+
+    $self->_indent();
+    $self->debug("processing concat() with " . @args . " arguments");
+
+   my @nodes; # will only be one
+
+   my $string;
+   foreach my $arg ( $self->_arguments_to_strings(@args ))
+   {
+           $string = "" unless defined $string;
+           $string .= $arg if defined $arg;
+   }
+
+   if ( defined $string )
+   {
+       $self->debug("Returning '$string'");
+       push @nodes, $self->_create_text_node($string);
+   }
+
+   $self->_outdent();
+   return @nodes;
+}
+
+sub _XSLT_FUNC_translate
+{
+    my ( $self, $root_node, $current_path, $current_node, $variables, @args ) = @_;
+
+    $self->_indent();
+    $self->debug("processing translate() with " . @args . " arguments");
+
+   my @nodes; # will only be one
+
+   if ( @args == 3 )
+   {
+       my ( $string, $from, $to ) = $self->_arguments_to_strings(@args);
+
+      if ( defined $string && defined $from && defined $to )
+      {
+          $self->debug("substituting '$to' for '$from' in '$string'");
+
+          $string =~ s/$from/$to/g;
+          $self->debug("Returning '$string'");
+          push @nodes, $self->_create_text_node($string);
+      }
+   }
+
+   $self->_outdent();
+   return @nodes;
+}
+
+# handy for string processing
+
+sub _arguments_to_strings
+{
+   my ( $self, @args ) = @_;
+
+   my @ret;
+   foreach my $arg (@args)
+   {
+      if ( ref $arg )
+      {
+         if ( @{$arg} )
+         {
+            my $string = $self->__strip_node_to_text__( $arg->[0] );
+            push @ret, $string;
+         }
+      }
+   }
+   return @ret;
+}
+
+# given a path it returns a version with common expansions.
+sub _expand_abbreviations
+{
+   my ( $self, $path ) = @_;
+
+   # expand abbriviated syntax
+   $path =~ s/current\(\s*\)/./g;
+   $path =~ s/\@/attribute\:\:/g;
+   $path =~ s/\.\./parent\:\:node\(\)/g;
+   $path =~ s/\./self\:\:node\(\)/g;
+   $path =~ s/\/\//\/descendant\-or\-self\:\:node\(\)\//g;
+
+   return $path;
+}
+
+# This returns an array reference of nodes
+# if it is a simple text variable then this will be created as text node first
+sub _expand_variable
+{
+   my ( $self, $varname, $variables ) = @_;
+
+   $self->_indent();
+   my $ret = [];
+   $self->debug("looking for variable $varname");
+   $self->debug( join ' ', keys %{$variables} );
+   my $var = $variables->{$varname};
+   if ( defined $var )
+   {
+      if ( ref( $var ) eq 'ARRAY' )
+      {
+
+         # node-set array-ref
+         $ret = $var;
+      }
+      elsif ( ref( $var ) eq 'XML::DOM::NodeList' )
+      {
+
+         # node-set nodelist
+         $ret = [ @{ $var } ];
+      }
+      elsif ( ref( $var ) eq 'XML::DOM::DocumentFragment' )
+      {
+
+         # node-set documentfragment
+         $ret = [ $var->getChildNodes() ];
+      }
+      else
+      {
+          $self->debug("$varname is literal '$var'");
+         # string or number?
+         $ret = [$self->_create_text_node($var)];
+      }
+   }
+
+   return $ret;
+}
+
+# given a candidate expression will return an extracted
+# variable name if it looks like a variable.
+sub _variable_name
+{
+    my ( $self, $part ) = @_;
+
+    my $rc;
+
+    if ($part && $part =~ /^\$([\w\.\-]+)$/ )
+    {
+        $rc = $1
+    }
+    return $rc;
 }
 
 # auxiliary function #
@@ -3672,7 +3861,7 @@ sub _text
 
     if ( $text ne '' )
     {
-        my $node = $self->xml_document()->createTextNode($text);
+        my $node = $self->_create_text_node($text);
         if ( $xsl_node->getAttribute('disable-output-escaping') eq 'yes' )
         {
             $self->debug("disabling output escaping");
@@ -3775,6 +3964,7 @@ sub _variable
         if ( $is_param and exists $$params{$varname} )
         {
 
+            $self->debug("copying from parent-template");
             # copy from parent-template
 
             $$variables{$varname} = $$params{$varname};
@@ -3782,6 +3972,7 @@ sub _variable
         }
         else
         {
+            $self->debug("new variable");
 
             # new variable definition
 
@@ -3789,6 +3980,7 @@ sub _variable
 
             if ( !$value )
             {
+                $self->debug("no select - evaluate as template");
 
                 #tough case, evaluate content as template
 
@@ -3799,12 +3991,15 @@ sub _variable
             }
             else    # either a literal or path
             {
-                if ( $value =~ /'(.*)'/ )
+                if ( $value =~ /^'(.*)'$/ )
                 {
+                    $self->debug('literal value $1');
                     $value = $1;
                 }
                 else
                 {
+                    $self->debug("processing as a path");
+
                     my $node =
                       $self->_get_node_set( $value, $self->xml_document(),
                         $current_xml_selection_path, $current_xml_node,
