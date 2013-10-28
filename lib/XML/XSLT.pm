@@ -1960,25 +1960,23 @@ sub _evaluate_test
 
     $self->debug("Doing test $test");
 
+    $self->_indent();
+
+    my $rc = 0;
+
     if ( $test =~ /^(.+)\/\[(.+)\]$/ )
     {
         my $path = $1;
-        $test = $2;
+        my $test = $2;
 
         $self->debug("evaluating test $test at path $path:");
 
-        $self->_indent();
         my $node =
           $self->_get_node_set( $path, $self->xml_document(),
             $current_xml_selection_path, $current_xml_node, $variables );
-        $self->_outdent();
         if (@$node)
         {
-            $current_xml_node = $$node[0];
-        }
-        else
-        {
-            return "";
+            $rc = $self->_evaluate_test($test,$node->[0], $current_xml_selection_path, $variables);
         }
     }
     else
@@ -1988,29 +1986,24 @@ sub _evaluate_test
           $self->_get_node_set( $test, $self->xml_document(),
             $current_xml_selection_path, $current_xml_node, $variables,
             "silent" );
-        $self->_indent();
         if (@$node)
         {
             $self->debug("path exists!");
-            $self->_outdent();
-            return "true";
+            $rc = 1;
         }
         else
         {
             $self->debug("not a valid path, evaluating as test");
+            $rc = $self->__evaluate_test__( $test, $current_xml_selection_path,
+        $current_xml_node, $variables );
         }
-        $self->_outdent();
     }
 
-    $self->_indent();
 
-    my $result =
-      $self->__evaluate_test__( $test, $current_xml_selection_path,
-        $current_xml_node, $variables );
+    $self->debug("test evaluates @{[ $rc ? 'true': 'false']}");
 
-    $self->debug("test evaluates @{[ $result ? 'true': 'false']}");
     $self->_outdent();
-    return $result;
+    return $rc;
 }
 
 sub _evaluate_template
