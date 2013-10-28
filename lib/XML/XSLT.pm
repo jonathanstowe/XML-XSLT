@@ -3736,6 +3736,8 @@ sub __evaluate_test__
     my ( $content, $test_cond, $expval, $lhs );
     $self->debug(qq{testing with "$test" and $tagname});
 
+# It's evaluate both as nodes then stringify to compare
+#
 	 if ($test =~ /^\s*(\S+?)\s*(<=|>=|!=|<|>|=)\s*['"]?([^'"]*?)['"]?\s*$/)
 	 {
 		 $lhs       = $1;
@@ -3748,6 +3750,7 @@ sub __evaluate_test__
        return '';
     }
 	$self->debug("Test LHS: $lhs");
+# don't need these as to get _get_node_set will do it
     if ( $lhs =~ /^\@([\w\.\:\-]+)$/ )
     {
 		  $self ->debug("Attribute: $1");
