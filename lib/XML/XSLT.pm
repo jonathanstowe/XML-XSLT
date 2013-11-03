@@ -945,7 +945,7 @@ sub __extract_top_level_variables
                {
                    $self->debug("Trying to get a literal");
                   $value = $value->getValue();
-                  if ( $value =~ /^'([^']*)$'/m )
+                  if ( $value =~ /^'([^']*)'$/m )
                   {
                      $value = $1;
                   }
@@ -3731,83 +3731,114 @@ sub __evaluate_test__
 {
     my ( $self, $test, $path, $node, $variables ) = @_;
 
+    my $rc = 0;
     my $tagname = eval { $node->getTagName() } || '';
 
-    my ( $content, $test_cond, $expval, $lhs );
     $self->debug(qq{testing with "$test" and $tagname});
 
-# It's evaluate both as nodes then stringify to compare
-#
-	 if ($test =~ /^\s*(\S+?)\s*(<=|>=|!=|<|>|=)\s*['"]?([^'"]*?)['"]?\s*$/)
+	 if ($test =~ /^\s*(\S+?)\s*(<=|>=|!=|<|>|=)\s*(\S+?)\s*$/)
 	 {
-		 $lhs       = $1;
-       $test_cond = $2;
-		 $expval    = $3;
+		 my $lhs       = $1;
+         my $test_cond = $2;
+		 my $rhs        = $3;
+	     $self->debug("Test LHS: $lhs COND: $test_cond RHS: $rhs");
+
+         my $content = $self->_get_first_value($lhs, $path, $node, $variables);
+         my $expval = $self->_get_first_value($lhs, $path, $node, $variables);
+
+         $rc =  $self->_evaluate_test_expression($content, $test_cond, $expval);
 	 }
     else
     {
        $self->debug("no match for test [$test]");
-       return '';
     }
-	$self->debug("Test LHS: $lhs");
-# don't need these as to get _get_node_set will do it
-    if ( $lhs =~ /^\@([\w\.\:\-]+)$/ )
-    {
-		  $self ->debug("Attribute: $1");
-        $content = $node->getAttribute($1);
-    }
-    elsif ( $lhs =~ /^([\$\w\.\:\-\/]+)$/ )
-    {
-		  $self ->debug("Path: $1");
-        my $test_path = $1;
-        my $nodeset   = $self->_get_node_set( $test_path, 
-					                               $self->xml_document(), 
-															 $path, 
-															 $node,
-                                              $variables );
-        return ( $expval ne '' ) unless @$nodeset;
-        $content = &__string__( $self, $$nodeset[0] );
-    }
-    else
-    {
-        $self->debug("no match for test");
-        return "0";
-    }
-    my $numeric = ($content =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0);
 
-    $self->debug("evaluating $content $test $expval");
+   return $rc;
+}
 
-    $test_cond =~ s/\s+//g;
+# convenience for above
 
-    if ( $test_cond eq '!=' )
-    {
-        return $numeric ? $content != $expval : $content ne $expval;
-    }
-    elsif ( $test_cond eq '=' )
-    {
-        return $numeric ? $content == $expval : $content eq $expval;
-    }
-    elsif ( $test_cond eq '<' )
-    {
-        return $numeric ? $content < $expval : $content lt $expval;
-    }
-    elsif ( $test_cond eq '>' )
-    {
-        return $numeric ? $content > $expval : $content gt $expval;
-    }
-    elsif ( $test_cond eq '>=' )
-    {
-        return $numeric ? $content >= $expval : $content ge $expval;
-    }
-    elsif ( $test_cond eq '<=' )
-    {
-        return $numeric ? $content <= $expval : $content le $expval;
-    }
-    else
-    {
-        $self->debug("no test matches");
-        return 0;
-    }
+sub _get_first_value
+{
+   my ( $self, $test_path, $path, $node, $variables ) = @_;
+
+   my $content;
+
+   my $nodeset = $self->_get_node_set( $test_path, 
+                                       $self->xml_document(), 
+                                       $path, 
+                                       $node,
+                                       $variables );
+
+   if ( @{$nodeset} )
+   {
+      $content = $self->__string__( $nodeset->[0] );
+   }
+   else
+   {
+       $self->debug("didn't get a result for $test_path");
+   }
+
+   return $content;
+
+}
+
+=item _evaluate_test_expression
+
+Given two values and a condition return a boolean.
+
+=cut
+
+sub _evaluate_test_expression
+{
+   my ( $self, $content, $test_cond, $expval ) = @_;
+
+   my $rc = 0;
+
+   if ( defined $content && defined $test_cond && defined $expval )
+   {
+      my $numeric = ( $content =~ /^\d+$/ && $expval =~ /^\d+$/ ? 1 : 0 );
+
+      $self->debug("evaluating $content $test_cond $expval");
+
+      $test_cond =~ s/\s+//g;
+
+      if ( $test_cond eq '!=' )
+      {
+         $rc = $numeric ? $content != $expval : $content ne $expval;
+      }
+      elsif ( $test_cond eq '=' )
+      {
+         $rc = $numeric ? $content == $expval : $content eq $expval;
+      }
+      elsif ( $test_cond eq '<' )
+      {
+         $rc = $numeric ? $content < $expval : $content lt $expval;
+      }
+      elsif ( $test_cond eq '>' )
+      {
+         $rc = $numeric ? $content > $expval : $content gt $expval;
+      }
+      elsif ( $test_cond eq '>=' )
+      {
+         $rc = $numeric ? $content >= $expval : $content ge $expval;
+      }
+      elsif ( $test_cond eq '<=' )
+      {
+         $rc = $numeric ? $content <= $expval : $content le $expval;
+      }
+      else
+      {
+         $self->debug("no test matches");
+      }
+   }
+   else
+   {
+      $self->debug("not all test parts defined");
+   }
+
+   return $rc;
+
 }
 
 sub _copy_of

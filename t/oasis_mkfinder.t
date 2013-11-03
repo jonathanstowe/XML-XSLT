@@ -4,7 +4,7 @@ use strict;
 
 use FindBin qw($Bin);
 
-my $DEBUG = 1;
+my $DEBUG = 0;
 my  $xslt = XML::XSLT->new (Source => "$Bin/test_data/MkFinder.xsl",debug => $DEBUG);
 $xslt->transform("$Bin/test_data/catalog.xml");
 ok(my $out =$xslt->toString,"open_xsl()");
@@ -17,4 +17,6 @@ my $expect =<<'EOF';
 echo DONE
 EOF
 
-like($out, qr/$expect/, "got what we expected");
+chomp $expect;
+
+is($out, $expect, "got what we expected");
