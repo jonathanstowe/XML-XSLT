@@ -135,8 +135,11 @@ sub new
     my %args  = $self->__parse_args(@_);
 
     $self->{DEBUG}       = defined $args{debug} ? $args{debug} : "";
+
+    {
 	 no strict 'subs';
 
+     no warnings 'redefine';
 	 if ( $self->{DEBUG} )
     {	
 	    *__PACKAGE__::debug = \&debug;
@@ -145,8 +148,9 @@ sub new
 	 {
 		*__PACKAGE__::debug = sub {};
 	 }
-
 	 use strict 'subs';
+    }
+
 
     $self->{INDENT}      = defined $args{indent}      ? $args{indent}      : 0;
     $self->{PARSER}      = XML::DOM::Parser->new();
@@ -1517,6 +1521,13 @@ sub toString
     {
       $string = $self->result_document()->toString();
     }
+
+    if ( $self->xsl_output_method() eq 'text' )
+    {
+# got to be a way to get the XML::DOM to do this.
+        $string =~ s/&amp;/&/g;
+        $string =~ s/&lt;/</g;
+    }
     return $string;
 }
 
@@ -2658,24 +2669,46 @@ sub _apply_attribute_set
 
    my $attr_set = $xsl_node->getAttribute('use-attribute-sets');
 
+   $self->__apply_attribute_sets($output_node, $attr_set);
+}
+
+# this could be a space delimited list of sets
+
+sub __apply_attribute_sets
+{
+    my ( $self, $output_node, $attr_set ) = @_;
+
+   $self->_indent();
+   $self->debug("__apply_attribute_sets with '$attr_set'");
    if ($attr_set)
    {
       $self->_indent();
-      my $set_name = $attr_set;
-
-      if ( my $set = $self->__attribute_set_($set_name) )
+      foreach my $set_name ( split ' ', $attr_set )
       {
-         $self->debug("Adding attribute-set '$set_name'");
-
-         foreach my $attr_name ( keys %{$set} )
-         {
-           $self->debug(
-                        "Adding attribute $attr_name ->" . $set->{$attr_name} );
-           $output_node->setAttribute( $attr_name, $set->{$attr_name} );
-         }
+          $self->debug("Applying attribute set $set_name");
+         $self->__apply_attribute_set($output_node, $set_name);
       }
       $self->_outdent();
    }
+   $self->_outdent();
+}
+
+sub __apply_attribute_set
+{
+   my ( $self, $output_node, $set_name ) = @_;
+
+   $self->_indent();
+   if ( my $set = $self->__attribute_set_($set_name) )
+   {
+      $self->debug("Adding attribute-set '$set_name'");
+
+      foreach my $attr_name ( keys %{$set} )
+      {
+         $self->debug("Adding attribute $attr_name ->" . $set->{$attr_name});
+         $output_node->setAttribute( $attr_name, $set->{$attr_name} );
+      }
+   }
+   $self->_outdent();
 }
 
 {
@@ -3076,7 +3109,7 @@ sub _XSLT_FUNC_translate
       {
           $self->debug("substituting '$to' for '$from' in '$string'");
 
-          $string =~ s/$from/$to/g;
+          $string =~ s/\Q$from/$to/g;
           $self->debug("Returning '$string'");
           push @nodes, $self->_create_text_node($string);
       }
@@ -3486,41 +3519,93 @@ sub __get_nodes__
 
 sub _attribute_value_of
 {
-    my ( $self, $xsl_node, $current_xml_node, $current_xml_selection_path,
-        $variables )
-      = @_;
+   my ( $self, $xsl_node, $current_xml_node, $current_xml_selection_path,
+      $variables ) = @_;
 
-    foreach my $attribute ( $xsl_node->getAttributes->getValues )
-    {
-        my $value = $attribute->getValue;
-        study($value);
+   $self->_indent();
+   foreach my $attribute ( $xsl_node->getAttributes->getValues )
+   {
+      my $attribute_name = $attribute->getName();
+      $self->debug("Processing attribute $attribute_name");
 
-        #$value =~ s/(\*|\$|\@|\&|\?|\+|\\)/\\$1/g;
-        $value =~ s/(\*|\?|\+)/\\$1/g;
-        study($value);
-        while ( $value =~ /\G[^\\]*\{(.*?[^\\]*)\}/ )
-        {
+      my $value = $xsl_node->getAttribute($attribute_name);
+      $self->debug("With value " . (defined $value ? $value : '<undef>'));
+
+      if ( my $local_name = $self->_is_xsl_name($attribute_name) )
+      {
+          $self->debug("Processing xslt attribute $local_name");
+
+          if ( $local_name eq 'use-attribute-sets' )
+          {
+              $self->debug("processing attribute sets");
+              $self->__apply_attribute_sets($xsl_node,$value);
+          }
+          else
+          {
+              $self->debug("unhandled xsl attribute");
+          }
+
+          $self->debug("removing attribute");
+          $xsl_node->removeAttribute($attribute_name);
+      }
+      else
+      {
+         #$value =~ s/(\*|\$|\@|\&|\?|\+|\\)/\\$1/g;
+         $value =~ s/(\*|\?|\+)/\\$1/g;
+         study($value);
+         while ( $value =~ /\G[^\\]*\{(.*?[^\\]*)\}/ )
+         {
             my $node =
-              $self->_get_node_set( $1, $self->xml_document(),
-                $current_xml_selection_path, $current_xml_node, $variables );
+              $self->_get_node_set( $1, 
+                                    $self->xml_document(),
+                                    $current_xml_selection_path, 
+                                    $current_xml_node, 
+                                    $variables );
             if (@$node)
             {
-                $self->_indent();
-                my $text = $self->__string__( $$node[0] );
-                $self->_outdent();
-                $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1$text/;
+               $self->_indent();
+               my $text = $self->__string__( $$node[0] );
+               $self->_outdent();
+               $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1$text/;
             }
             else
             {
-                $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1/;
+               $value =~ s/(\G[^\\]*)\{(.*?)[^\\]*\}/$1/;
             }
-        }
+         }
 
-        #$value =~ s/\\(\*|\$|\@|\&|\?|\+|\\)/$1/g;
-        $value =~ s/\\(\*|\?|\+)/$1/g;
-        $value =~ s/\\(\{|\})/$1/g;
-        $attribute->setValue($value);
+         #$value =~ s/\\(\*|\$|\@|\&|\?|\+|\\)/$1/g;
+         $value =~ s/\\(\*|\?|\+)/$1/g;
+         $value =~ s/\\(\{|\})/$1/g;
+         $attribute->setValue($value);
+      }
+   }
+   $self->_outdent();
+}
+
+# returns the local name if this name belongs to XSLT
+sub _is_xsl_name
+{
+    my ( $self, $name ) = @_;
+
+    my $local_name;
+
+    $self->_indent();
+    if ( $name )
+    {
+        $self->debug("Check if $name is owned by XSLT");
+
+        my ( $ns, $local_local_name ) = split /:/, $name;
+
+        if ( defined($local_local_name) && ( "$ns:" eq $self->xsl_ns() ))
+        {
+            $self->debug("$local_local_name is XSLT");
+            $local_name = $local_local_name;
+        }
     }
+
+    $self->_outdent();
+    return $local_name;
 }
 
 sub _processing_instruction
