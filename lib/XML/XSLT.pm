@@ -36,7 +36,7 @@ use constant NS_XHTML => 'http://www.w3.org/TR/xhtml1/strict';
 
 use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
 
-$VERSION = '0.50_4';
+$VERSION = '0.50_5';
 
 @ISA       = qw( Exporter );
 @EXPORT_OK = qw( &transform &serve );
