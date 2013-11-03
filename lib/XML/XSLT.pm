@@ -1962,11 +1962,15 @@ sub _evaluate_test
 
     my $cond;
 
-    foreach my $test_part ( split /\s+(or|and)\s+/, $test )
+    $self->debug("evaluating $test");
+    foreach my $test_part ( split /\s+\b(or|and)\b\s+/, $test )
     {
-        if ( $test_part =~ /(or|and)/i )
+        $self->debug("evaluating part $test_part");
+
+        if ( $test_part =~ /^(or|and)$/i )
         {
             $cond = $1;
+            $self->debug("got '$cond'");
         }
         else
         {
@@ -1974,14 +1978,17 @@ sub _evaluate_test
 
             if (!$cond)
             {
+                $self->debug("using response");
                 $rc = $one_rc;
             }
             elsif( $cond eq 'or' )
             {
+                $self->debug("or'ing response");
                 $rc |= $one_rc;
             }
             elsif( $cond eq 'and' )
             {
+                $self->debug("and'ing response");
                 $rc &= $one_rc;
             }
         }
@@ -3744,7 +3751,7 @@ sub __evaluate_test__
 	     $self->debug("Test LHS: $lhs COND: $test_cond RHS: $rhs");
 
          my $content = $self->_get_first_value($lhs, $path, $node, $variables);
-         my $expval = $self->_get_first_value($lhs, $path, $node, $variables);
+         my $expval = $self->_get_first_value($rhs, $path, $node, $variables);
 
          $rc =  $self->_evaluate_test_expression($content, $test_cond, $expval);
 	 }
@@ -3761,6 +3768,11 @@ sub __evaluate_test__
 sub _get_first_value
 {
    my ( $self, $test_path, $path, $node, $variables ) = @_;
+
+   if ( $test_path =~ /^\d+$/ )
+   {
+       $test_path = "'$test_path'";
+   }
 
    my $content;
 
