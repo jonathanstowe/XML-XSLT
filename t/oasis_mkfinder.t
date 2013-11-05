@@ -3,10 +3,17 @@ use XML::XSLT;
 use strict;
 
 use FindBin qw($Bin);
+use File::Spec;
 
 my $DEBUG = 0;
+
+my $xsl_file = File::Spec->catfile($Bin, 'test_data','MkFinder.xsl');
+
 my  $xslt = XML::XSLT->new (Source => "$Bin/test_data/MkFinder.xsl",debug => $DEBUG);
-$xslt->transform("$Bin/test_data/catalog.xml");
+
+my $in_file = File::Spec->catfile($Bin, 'test_data', 'catalog.xml');
+
+$xslt->transform($in_file);
 ok(my $out =$xslt->toString,"open_xsl()");
 
 my $expect =<<'EOF';
