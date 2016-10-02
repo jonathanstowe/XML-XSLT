@@ -175,6 +175,14 @@ sub new
     return $self;
 }
 
+=item use_deprecated
+
+Accessor for the use_deprecated option to the accessor.
+
+This suppresses deprecation warnings.
+
+=cut
+
 sub use_deprecated
 {
     my ( $self, $use_deprecated ) = @_;
@@ -336,6 +344,13 @@ sub output_encoding
     return exists $self->{OUTPUT_ENCODING} ? $self->{OUTPUT_ENCODING} : 'UTF-8';
 }
 
+=item doctype_system
+
+Accessor for a system document type if defined in the XML
+
+
+=cut
+
 sub doctype_system
 {
     my ( $self, $doctype ) = @_;
@@ -347,6 +362,12 @@ sub doctype_system
 
     return $self->{DOCTYPE_SYSTEM};
 }
+
+=item doctype_public 
+
+Accessor for the public doctype if defined in the XML
+
+=cut
 
 sub doctype_public
 {
@@ -392,6 +413,12 @@ sub debug
     print STDERR " " x $self->{INDENT}, "$arg\n"
       if $self->{DEBUG};
 }
+
+=item warn
+
+Internal warning method
+
+=cut
 
 sub warn
 {
@@ -726,6 +753,13 @@ sub __get_stylesheet
     $self->xsl_document($stylesheet);
 }
 
+=item xslt_version
+
+Accessor for the XSLT version as defined in the stylesheet
+
+=cut
+
+
 sub xslt_version
 {
     my ( $self, $xslt_version ) = @_;
@@ -828,6 +862,12 @@ sub default_ns
     }
     return exists $self->{DEFAULT_NS} ? $self->{DEFAULT_NS} : undef;
 }
+
+=item xsl_ns
+
+Accessor for XSL namespace as used in the stylesheet,
+
+=cut
 
 sub xsl_ns
 {
@@ -985,7 +1025,7 @@ sub __add_default_templates
     $self->xsl_document()->insertBefore( $elem_template, $self->_top_xsl_node() );
 }
 
-=item tempates
+=item templates
 
 Returns the templates from the XSL document.
 
@@ -1134,6 +1174,13 @@ sub __set_xsl_output
     }
 }
 
+=item omit_xml_declaration
+
+This returns a boolean to determine whether 'omit-xm-declaration' was
+declared in the stylesheet
+
+=cut
+
 sub omit_xml_declaration
 {
     my ( $self, $omit_xml_declaration ) = @_;
@@ -1173,6 +1220,13 @@ sub cdata_sections
 
     return wantarray() ? @{ $self->{CDATA_SECTIONS} } : $self->{CDATA_SECTIONS};
 }
+
+=item is_cdata_section
+
+Returns a boolean to indicate whether the supplied element
+is a pre-specified cdata section.
+
+=cut
 
 sub is_cdata_section
 {
@@ -3941,6 +3995,13 @@ sub _outdent
     my ($self) = @_;
     $self->{INDENT} -= $self->{INDENT_INCR};
 }
+
+=item fix_attribute_value
+
+Used internally to post-process a resolved attribute value
+to something compliant.
+
+=cut
 
 sub fix_attribute_value
 {
