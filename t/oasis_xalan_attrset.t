@@ -18,7 +18,7 @@ TODO:
 {
     local $TODO = 'attrset not working yet';
   
-eval
+lives_ok
 {
 
 
@@ -28,11 +28,9 @@ ok(my $out = $xslt->toString(),q~Set attribute of a LRE from single attribute se
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset01.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset02.xsl", debug => $DEBUG);
@@ -41,11 +39,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of a LRE from multiple attribute
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset02.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset03.xsl", debug => $DEBUG);
@@ -54,14 +50,10 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with multiple attribute sets. ~
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset03.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
-{
-    my $DEBUG = 1;
 
+lives_ok
+{
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xml");
 ok(my $out = $xslt->toString(),q~Use xsl:copy with multiple attribute sets, no conflicts. ~);
@@ -74,11 +66,9 @@ if ( $out =~ /^\s*(.*?)\s*/sm )
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset04.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset05.xsl", debug => $DEBUG);
@@ -88,11 +78,9 @@ ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/tes
 
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset06.xsl", debug => $DEBUG);
@@ -101,11 +89,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of a LRE using attribute sets th
 ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset06.out"),"test1"), "output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset07.xsl", debug => $DEBUG);
@@ -114,11 +100,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of a LRE using attribute sets th
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset07.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset08.xsl", debug => $DEBUG);
@@ -127,11 +111,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with attribute sets that inheri
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset08.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset09.xsl", debug => $DEBUG);
@@ -140,11 +122,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with attribute sets that inherit, 
 ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset09.out"),"foo"), "output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset10.xsl", debug => $DEBUG);
@@ -153,11 +133,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of an LRE, using attribute sets 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset10.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset11.xsl", debug => $DEBUG);
@@ -166,11 +144,9 @@ ok(my $out = $xslt->toString(),q~ ~);
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset11.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset12.xsl", debug => $DEBUG);
@@ -179,11 +155,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of an LRE, using one attribute s
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset12.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset13.xsl", debug => $DEBUG);
@@ -192,11 +166,9 @@ ok(my $out = $xslt->toString(),q~Creating attribute for Literal Result Element. 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset13.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset14.xsl", debug => $DEBUG);
@@ -205,12 +177,10 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with attribute having a namespa
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset14.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
+
 
 SKIP:
-eval
+lives_ok
 {
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset15.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset15.xml");
@@ -218,12 +188,10 @@ ok(my $out = $xslt->toString(),q~The name attribute is interpreted as an attribu
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset15.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
+
 
 SKIP:
-eval
+lives_ok
 {
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset16.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset16.xml");
@@ -231,11 +199,9 @@ ok(my $out = $xslt->toString(),q~The namespace attribute is interpreted as an at
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset16.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset17.xsl", debug => $DEBUG);
@@ -244,11 +210,9 @@ ok(my $out = $xslt->toString(),q~Verify that 'checked' attribute of HTML element
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset17.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset18.xsl", debug => $DEBUG);
@@ -257,11 +221,9 @@ ok(my $out = $xslt->toString(),q~Verify adding an attribute to an element replac
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset18.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset19.xsl", debug => $DEBUG);
@@ -270,11 +232,9 @@ ok(my $out = $xslt->toString(),q~Verify adding an attribute to an element after 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset19.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset20.xsl", debug => $DEBUG);
@@ -283,11 +243,9 @@ ok(my $out = $xslt->toString(),q~Test for selecting attributes with xml namespac
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset20.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset21.xsl", debug => $DEBUG);
@@ -296,11 +254,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with a single attribute set. ~);
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset21.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset22.xsl", debug => $DEBUG);
@@ -309,11 +265,9 @@ ok(my $out = $xslt->toString(),q~Verify that attributes that contain text nodes 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset22.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset23.xsl", debug => $DEBUG);
@@ -322,12 +276,10 @@ ok(my $out = $xslt->toString(),q~XSLT processors may make use of the prefix of t
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset23.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
+
 
 SKIP:
-eval
+lives_ok
 {
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset24.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset24.xml");
@@ -335,11 +287,9 @@ ok(my $out = $xslt->toString(),q~The attribute must be in the designated namespa
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset24.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset25.xsl", debug => $DEBUG);
@@ -348,11 +298,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with for-each inside xsl:attrib
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset25.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset26.xsl", debug => $DEBUG);
@@ -361,12 +309,10 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with multiple attribute sets that 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset26.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
+
 
 SKIP:
-eval
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset27.xsl", debug => $DEBUG);
@@ -375,11 +321,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with multiple attribute sets with 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset27.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset28.xsl", debug => $DEBUG);
@@ -388,12 +332,10 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with multiple attribute sets in a 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset28.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
+
 
 SKIP:
-eval
+lives_ok
 {
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset29.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset29.xml");
@@ -401,11 +343,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:copy with multiple attribute sets in "m
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset29.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset30.xsl", debug => $DEBUG);
@@ -414,11 +354,9 @@ ok(my $out = $xslt->toString(),q~Set attributes of an element created with xsl:e
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset30.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset31.xsl", debug => $DEBUG);
@@ -427,11 +365,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with multiple attribute sets wi
 ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset31.out"),"element1"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset32.xsl", debug => $DEBUG);
@@ -440,11 +376,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with multiple attribute sets wi
 ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset32.out"),"test1"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset33.xsl", debug => $DEBUG);
@@ -453,11 +387,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with multiple attribute sets th
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset33.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset34.xsl", debug => $DEBUG);
@@ -466,11 +398,9 @@ ok(my $out = $xslt->toString(),q~Use xsl:element with multiple attribute sets th
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset34.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset35.xsl", debug => $DEBUG);
@@ -479,11 +409,9 @@ ok(my $out = $xslt->toString(),q~Verify adding an attribute to an element after 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset35.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset36.xsl", debug => $DEBUG);
@@ -492,11 +420,9 @@ ok(my $out = $xslt->toString(),q~Verify adding an attribute to an element after 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset36.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset37.xsl", debug => $DEBUG);
@@ -505,11 +431,9 @@ ok(my $out = $xslt->toString(),q~Set some attributes from an imported definition
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset37.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset38.xsl", debug => $DEBUG);
@@ -518,11 +442,9 @@ ok(my $out = $xslt->toString(),q~Set some attributes from an imported definition
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset38.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset39.xsl", debug => $DEBUG);
@@ -531,11 +453,9 @@ ok(my $out = $xslt->toString(),q~Test use of leading underscore in names. ~);
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset39.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset40.xsl", debug => $DEBUG);
@@ -544,11 +464,9 @@ ok(my $out = $xslt->toString(),q~The attribute must be in the designated namespa
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset40.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset41.xsl", debug => $DEBUG);
@@ -557,11 +475,9 @@ ok(my $out = $xslt->toString(),q~Test inheritance of attribute sets. A literal r
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset41.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset42.xsl", debug => $DEBUG);
@@ -570,11 +486,9 @@ ok(my $out = $xslt->toString(),q~Test inheritance of attribute sets. A literal r
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset42.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset43.xsl", debug => $DEBUG);
@@ -583,11 +497,9 @@ ok(my $out = $xslt->toString(),q~Test inheritance of attribute sets. A xsl:eleme
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset43.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset44.xsl", debug => $DEBUG);
@@ -596,11 +508,9 @@ ok(my $out = $xslt->toString(),q~Only top-level variables and params are visible
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset44.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset45.xsl", debug => $DEBUG);
@@ -609,11 +519,9 @@ ok(my $out = $xslt->toString(),q~Basic test of import precedence with attribute 
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset45.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset46.xsl", debug => $DEBUG);
@@ -622,11 +530,9 @@ ok(my $out = $xslt->toString(),q~Basic test of import precedence based on Richar
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset46.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset47.xsl", debug => $DEBUG);
@@ -635,24 +541,20 @@ ok(my $out = $xslt->toString(),q~Test attribute set with a qualified name. ~);
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset47.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
-  my $DEBUG=1;
+
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset48.xsl", debug => $DEBUG);
 $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset48.xml");
 ok(my $out = $xslt->toString(),q~Test attribute set with a qualified name, different prefix. ~);
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset48.out"),"output is as expected");
 
 };
-if($@)
-{
-fail($@)}
 
-eval
+
+lives_ok
 {
 
 my $xslt = XML::XSLT->new(Source =>  "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset49.xsl", debug => $DEBUG);
@@ -661,10 +563,6 @@ ok(my $out = $xslt->toString(),q~Attempt to set an empty or null attribute in va
 is($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset49.out"),"output is as expected");
 
 };
-if($@)
-{
-    fail($@)
-}
 }
 
 done_testing();
