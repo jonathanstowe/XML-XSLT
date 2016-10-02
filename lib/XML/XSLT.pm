@@ -985,7 +985,7 @@ sub __add_default_templates
     $self->xsl_document()->insertBefore( $elem_template, $self->_top_xsl_node() );
 }
 
-=item
+=item tempates
 
 Returns the templates from the XSL document.
 
