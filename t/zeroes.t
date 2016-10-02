@@ -7,8 +7,9 @@ use_ok('XML::XSLT');
 
 my $parser;
 
-lives_ok { 
-$parser = XML::XSLT->new (<<'EOS', warnings => 'Active');
+lives_ok
+{
+    $parser = XML::XSLT->new( <<'EOS', warnings => 'Active' );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="/"><d><xsl:apply-templates/></d></xsl:template>
@@ -18,24 +19,27 @@ $parser = XML::XSLT->new (<<'EOS', warnings => 'Active');
 <xsl:template match="s"><d size="{@size}"><xsl:apply-templates /></d></xsl:template>
 </xsl:stylesheet>
 EOS
-} "New from literal stylesheet";
-ok($parser,"Parser is a defined value");
+}
+"New from literal stylesheet";
+ok( $parser, "Parser is a defined value" );
 
-lives_ok {
-$parser->transform(\<<EOX);
+lives_ok
+{
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p /><q /><r>0</r><s size="0">0</s></doc>
 EOX
-} "transform a literal XML document";
-
+}
+"transform a literal XML document";
 
 my $outstr;
-lives_ok {
-    $outstr = $parser->toString ;
-} "toString";
+lives_ok
+{
+    $outstr = $parser->toString;
+}
+"toString";
 
+ok( $outstr, "toString produced output" );
 
-ok($outstr,"toString produced output");
+my $correct = '<d>000<d size="0">0</d></d>';
 
-my $correct='<d>000<d size="0">0</d></d>';
-
-is( $outstr, $correct,"The expected output was produced");
+is( $outstr, $correct, "The expected output was produced" );

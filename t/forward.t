@@ -7,7 +7,7 @@ use Test::Most tests => 12;
 
 use_ok('XML::XSLT');
 
-my $stylesheet =<<EOS;
+my $stylesheet = <<EOS;
 <?xml version="1.0" ?>
 <xsl:stylesheet version="17.0"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -33,29 +33,33 @@ EOS
 
 my $parser;
 
-lives_ok { 
-    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
+lives_ok
+{
+    $parser = XML::XSLT->new( \$stylesheet, debug => $DEBUGGING );
     ok $parser, "got a parser";
-} 'Forward compatibility as per 1.1 Working Draft';
+}
+'Forward compatibility as per 1.1 Working Draft';
 
 my $xml = '<doc>Test data</doc>';
 
 my $outstr;
 
-lives_ok {
-   $parser->transform($xml);
-   ok $outstr = $parser->toString(), "got output";
-} 'Check it can process this';
+lives_ok
+{
+    $parser->transform($xml);
+    ok $outstr = $parser->toString(), "got output";
+}
+'Check it can process this';
 
-my $wanted =<<EOW;
+my $wanted = <<EOW;
 <html><head><title>XSLT 17.0 required</title></head><body><p>Sorry, this stylesheet requires XSLT 17.0.</p></body></html>
 EOW
 
 chomp($wanted);
 
-is($outstr , $wanted, 'Check it makes the right output');
+is( $outstr, $wanted, 'Check it makes the right output' );
 
-$stylesheet =<<EOS;
+$stylesheet = <<EOS;
 <?xml version="1.0" ?>
 <xsl:stylesheet version="18.0"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform">   
@@ -75,21 +79,27 @@ $stylesheet =<<EOS;
 </xsl:stylesheet>
 EOS
 
-lives_ok {
-   $parser->dispose();
-} 'dispose';
+lives_ok
+{
+    $parser->dispose();
+}
+'dispose';
 
-lives_ok {
-   ok $parser = XML::XSLT->new( \$stylesheet,debug => $DEBUGGING), "got the parser";
-} 'Another forward compat test';
+lives_ok
+{
+    ok $parser = XML::XSLT->new( \$stylesheet, debug => $DEBUGGING ), "got the parser";
+}
+'Another forward compat test';
 
-lives_ok {
-   $parser->transform($xml);
-   ok $outstr = $parser->toString(), "got output";
-} 'Transform this';
+lives_ok
+{
+    $parser->transform($xml);
+    ok $outstr = $parser->toString(), "got output";
+}
+'Transform this';
 
 $wanted = 'Test data';
 
 chomp($wanted);
 
-is($outstr , $wanted, 'Check it makes the right output');
+is( $outstr, $wanted, 'Check it makes the right output' );

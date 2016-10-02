@@ -11,8 +11,7 @@ $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
-
-my $xml =<<'EOX';
+my $xml = <<'EOX';
 <?xml version="1.0"?>
 <doc>
   <foo>Content of foo</foo>
@@ -20,7 +19,7 @@ my $xml =<<'EOX';
 </doc>
 EOX
 
-my $stylesheet =<<'EOS';
+my $stylesheet = <<'EOS';
 <?xml version="1.0"?>
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
    <xsl:output method="xml" />
@@ -43,20 +42,18 @@ my $stylesheet =<<'EOS';
 </xsl:stylesheet>
 EOS
 
-my $expect =<<'EOE';
+my $expect = <<'EOE';
 <out><item>
 foo: Content of foo</item><item>
 bar: Content of foo</item></out>
 EOE
 
-
-my $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-$parser->transform(\$xml);
+my $parser = XML::XSLT->new( \$stylesheet, debug => $DEBUGGING );
+$parser->transform( \$xml );
 my $out = $parser->toString();
-
 
 TODO:
 {
-   local $TODO = "pattern selector not working";
-   ok($out eq $expect,'pattern template selector');
+    local $TODO = "pattern selector not working";
+    ok( $out eq $expect, 'pattern template selector' );
 }

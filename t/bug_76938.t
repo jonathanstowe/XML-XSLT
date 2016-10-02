@@ -2,11 +2,11 @@
 use strict;
 use warnings;
 
-use Test::Most tests => 1;                      # last test to print
+use Test::Most tests => 1;    # last test to print
 
 use XML::XSLT;
 
-my $xsl='
+my $xsl = '
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="/">
 <ul>
@@ -18,7 +18,7 @@ my $xsl='
 </xsl:stylesheet>
 ';
 
-my $xml="<?xml version='1.0'?>
+my $xml = "<?xml version='1.0'?>
 <uppernode>
 <mynode num='1'>This is one</mynode>
 <mynode num='2'>This is two</mynode>
@@ -28,8 +28,7 @@ my $xml="<?xml version='1.0'?>
 
 my $debug = 0;
 
-my $xslt = XML::XSLT->new($xsl, warnings => 1, debug => $debug);
+my $xslt = XML::XSLT->new( $xsl, warnings => 1, debug => $debug );
 $xslt->transform($xml);
-ok($xslt->toString() =~ /.*This is one.*This is two.*This is three.*/, "got the right child nodes by attribute index");
-
+ok( $xslt->toString() =~ /.*This is one.*This is two.*This is three.*/, "got the right child nodes by attribute index" );
 

@@ -3,14 +3,13 @@ use warnings;
 
 use Test::Most tests => 12;
 
-
 our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
 # First example
 
-my $stylesheet =<<EOS;
+my $stylesheet = <<EOS;
 <xsl:stylesheet version="1.1"
                 xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
                 xmlns="http://www.w3.org/TR/xhtml1"> 
@@ -66,7 +65,7 @@ my $stylesheet =<<EOS;
 </xsl:stylesheet>
 EOS
 
-my $xml =<<EOX;
+my $xml = <<EOX;
 <!DOCTYPE doc SYSTEM "doc.dtd">
 <doc>
 <title>Document Title</title>
@@ -88,7 +87,7 @@ EOX
 
 # this is not the same as that in the spec because of white space issues
 
-my $expected =<<EOE;
+my $expected = <<EOE;
 <?xml version="1.0" encoding="iso-8859-1"?>
 <html><head><title>Document Title</title></head><body>
 <h1>Document Title</h1>
@@ -111,24 +110,27 @@ EOE
 chomp($expected);
 my $parser;
 
-lives_ok {
-   ok $parser = XML::XSLT->new($stylesheet,debug => $DEBUGGING), "got parser";
-} 'Can parse example stylesheet';
+lives_ok
+{
+    ok $parser = XML::XSLT->new( $stylesheet, debug => $DEBUGGING ), "got parser";
+}
+'Can parse example stylesheet';
 
 my $outstr;
 
-lives_ok {
-   ok $outstr = $parser->serve(\$xml,http_headers => 0), "got output";
-} 'serve produced output';
+lives_ok
+{
+    ok $outstr = $parser->serve( \$xml, http_headers => 0 ), "got output";
+}
+'serve produced output';
 
-
-is($outstr, $expected,'Matches output');
+is( $outstr, $expected, 'Matches output' );
 
 $parser->dispose();
 
 # The data example - test 'Literal result as stylesheet'
 
-$xml =<<EOX;
+$xml = <<EOX;
 <sales>         
         <division id="North">
                 <revenue>10</revenue>
@@ -148,7 +150,7 @@ $xml =<<EOX;
 </sales>
 EOX
 
-$stylesheet =<<'EOS';
+$stylesheet = <<'EOS';
 <html xsl:version="1.1"
       xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
       lang="en">
@@ -194,7 +196,7 @@ $stylesheet =<<'EOS';
 </html>
 EOS
 
-$expected =<<EOE;
+$expected = <<EOE;
 <html lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -219,20 +221,24 @@ $expected =<<EOE;
 </html>
 EOE
 
-lives_ok {
-   ok $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING), "got a parser";
-} 'Wahay it can parse literal result';
+lives_ok
+{
+    ok $parser = XML::XSLT->new( \$stylesheet, debug => $DEBUGGING ), "got a parser";
+}
+'Wahay it can parse literal result';
 
-lives_ok {
-   ok $outstr = $parser->serve(\$xml,http_headers => 0), "got some output";
-} 'serve at least did something';
+lives_ok
+{
+    ok $outstr = $parser->serve( \$xml, http_headers => 0 ), "got some output";
+}
+'serve at least did something';
 
-ok($outstr !~ 'xsl:sort', 'xsl:sort has not reappeared');
+ok( $outstr !~ 'xsl:sort', 'xsl:sort has not reappeared' );
 
 TODO:
 {
-   local $TODO = "Doesn't handle xsl:sort properly";
-   is( $outstr, $expected,'Great it does Literal stylesheets');
+    local $TODO = "Doesn't handle xsl:sort properly";
+    is( $outstr, $expected, 'Great it does Literal stylesheets' );
 }
 
 print $outstr if $DEBUGGING;

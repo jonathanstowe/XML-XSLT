@@ -12,14 +12,13 @@ $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
-
-my $xml =<<'EOX';
+my $xml = <<'EOX';
 <doc>
    <bar />
 </doc>
 EOX
 
-my $stylesheet =<<'EOS';
+my $stylesheet = <<'EOS';
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:output method="xml"/>
 <xsl:include href="t/include.xsl"/> 
@@ -32,9 +31,8 @@ EOS
 
 my $expect = '<foo>bar</foo>';
 
-
-my $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-$parser->transform(\$xml);
+my $parser = XML::XSLT->new( \$stylesheet, debug => $DEBUGGING );
+$parser->transform( \$xml );
 my $out = $parser->toString();
 
-ok($out eq $expect,'pattern template selector');
+ok( $out eq $expect, 'pattern template selector' );

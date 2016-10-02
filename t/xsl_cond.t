@@ -8,8 +8,9 @@ our $DEBUGGING = 0;
 use_ok('XML::XSLT');
 
 # element tests
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -20,24 +21,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>foo</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node string eq";
 
-   is $outstr, $correct, "got expected output";
-} "text node string eq";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -48,24 +50,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>bar</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node string ne";
 
-   is $outstr, $correct, "got expected output";
-} "text node string ne";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -76,24 +79,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>a</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node string lt";
 
-   is $outstr,  $correct, "got expected output";
-} "text node string lt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -104,24 +108,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>c</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node string gt";
 
-   is $outstr, $correct, "got expected output";
-} "text node string gt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -132,24 +137,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>c</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node string ge";
 
-   is $outstr, $correct, "got expected output";
-} "text node string ge";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -160,24 +166,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>b</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr , $correct, "got expected output";
+}
+"text node string le";
 
-   is $outstr , $correct, "got expected output";
-} "text node string le";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -188,25 +195,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>42</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric eq";
 
-   is $outstr,  $correct, "got expected output";
-} "text node numeric eq";
-
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -217,24 +224,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>43</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric ne";
 
-   is $outstr, $correct, "got expected output";
-} "text node numeric ne";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -245,24 +253,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>41</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric lt";
 
-   is $outstr, $correct, "got expected output";
-} "text node numeric lt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -273,25 +282,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>43</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric gt";
 
-   is $outstr, $correct, "got expected output";
-} "text node numeric gt";
-
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -302,24 +311,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>43</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric ge";
 
-   is $outstr, $correct, "got expected output";
-} "text node numeric ge";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<EOS, debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -330,26 +340,27 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p><title>41</title>some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
-
-   is $outstr, $correct, "got expected output";
-} "text node numeric le";
+    is $outstr, $correct, "got expected output";
+}
+"text node numeric le";
 
 # attribute tests
 
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -360,24 +371,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="foo">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string eq";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string eq";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -388,24 +400,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="bar">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string ne";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string ne";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -416,24 +429,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="a">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string lt";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string lt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -444,24 +458,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="c">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string gt";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string gt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -472,24 +487,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="c">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string ge";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string ge";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -500,24 +516,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="b">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute string le";
 
-   is $outstr, $correct, "got expected output";
-} "attribute string le";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -528,25 +545,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="42">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric eq";
 
-   is $outstr, $correct, "got expected output";
-} "attribute numeric eq";
-
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -557,24 +574,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="43">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric ne";
 
-   is $outstr, $correct, "got expected output";
-} "attribute numeric ne";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -585,24 +603,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="41">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric lt";
 
-   is $outstr, $correct, "got expected output";
-} "attribute numeric lt";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -613,25 +632,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="43">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric gt";
 
-   is $outstr, $correct, "got expected output";
-} "attribute numeric gt";
-
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -642,24 +661,25 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="42">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric ge";
 
-   is $outstr, $correct, "got expected output";
-} "attribute numeric ge";
-
-lives_ok {
-   my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
+lives_ok
+{
+    my $parser = XML::XSLT->new( <<'EOS', debug => $DEBUGGING );
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 <xsl:template match="doc"><doc><xsl:apply-templates/></doc></xsl:template>
@@ -670,19 +690,19 @@ lives_ok {
 </xsl:stylesheet>
 EOS
 
-   $parser->transform(\<<EOX);
+    $parser->transform( \<<EOX);
 <?xml version="1.0"?><doc><p title="41">some random text</p></doc>
 EOX
 
-   my $outstr =  $parser->toString();
+    my $outstr = $parser->toString();
 
-   warn $outstr if $DEBUGGING;
+    warn $outstr if $DEBUGGING;
 
+    my $correct = '<doc>ok</doc>';
 
-   my $correct = '<doc>ok</doc>';
+    $parser->dispose();
 
-   $parser->dispose();
-
-   is $outstr, $correct, "got expected output";
-} "attribute numeric le";
+    is $outstr, $correct, "got expected output";
+}
+"attribute numeric le";
 

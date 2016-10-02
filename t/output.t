@@ -24,21 +24,24 @@ my $stylesheet = <<EOS;
 </xsl:transform>
 EOS
 
-my $xml =<<EOX;
+my $xml = <<EOX;
 <?xml version="1.0"?>
 <foo>This is a test</foo>
 EOX
 
-
 my $parser;
 
-lives_ok {
-  ok $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING), "got a parser";
-} "new from literal stylesheet";
+lives_ok
+{
+    ok $parser = XML::XSLT->new( $stylesheet, debug => $DEBUGGING ), "got a parser";
+}
+"new from literal stylesheet";
 
-lives_ok {
-   $parser->transform(\$xml);
-} "transform";
+lives_ok
+{
+    $parser->transform( \$xml );
+}
+"transform";
 
 my $correct = "<foo>This is a test</foo>";
 
@@ -46,14 +49,15 @@ my $outstr;
 
 warn $outstr if $DEBUGGING;
 
-lives_ok {
-  ok $outstr = $parser->toString(), "got some output";
-} "toString works";
+lives_ok
+{
+    ok $outstr = $parser->toString(), "got some output";
+}
+"toString works";
 
+is( $outstr, $correct, "Output meets expectations - with toString" );
 
-is($outstr , $correct,"Output meets expectations - with toString");
-
-$correct =<<EOC;
+$correct = <<EOC;
 <?xml version="1.0" encoding="ISO-8859-1"?>
 <!DOCTYPE foo PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "">
 <foo>This is a test</foo>
@@ -61,9 +65,11 @@ EOC
 
 chomp($correct);
 
-lives_ok {
-   ok $outstr = $parser->serve(\$xml,http_headers => 0), "serve with http_headers";
-} "serve(), works";
+lives_ok
+{
+    ok $outstr = $parser->serve( \$xml, http_headers => 0 ), "serve with http_headers";
+}
+"serve(), works";
 
-is($outstr , $correct,"Output meets expectations with declarations");
+is( $outstr, $correct, "Output meets expectations with declarations" );
 
