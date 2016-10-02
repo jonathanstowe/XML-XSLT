@@ -1,19 +1,17 @@
 #!/usr/bin/perl
-# Test xsl:copy
-# $Id: copy.t,v 1.1 2004/02/17 10:06:12 gellyfish Exp $
 
-use Test::Most tests => 2;
+use Test::Most tests => 3;
 
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
 
-eval
-{
+lives_ok {
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -38,7 +36,5 @@ EOX
                                                                                 
   my $wanted = '<out><test format="bold"/></out>';
   my $outstr =  $parser->toString;
-  die "$outstr ne $wanted\n" unless $outstr eq $wanted;
-};
-
-ok(!$@,"apply attribute set to xsl:copy");
+  is $outstr , $wanted, "got expected output";
+} "apply attribute set to xsl:copy";
