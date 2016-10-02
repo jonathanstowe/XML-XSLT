@@ -1,12 +1,9 @@
-# Test for 'output'  (which is hopefully fixed)
-# $Id: output.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
-
-use Test::Most tests => 7;
 use strict;
+use warnings;
 
-use vars qw($DEBUGGING);
+use Test::Most tests => 10;
 
-$DEBUGGING = 0;
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
@@ -35,40 +32,26 @@ EOX
 
 my $parser;
 
-eval
-{
-  $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING);
-  die unless $parser;
-};
-warn $@ if $DEBUGGING;
-ok (!$@,"new from literal stylesheet");
+lives_ok {
+  ok $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING), "got a parser";
+} "new from literal stylesheet";
 
-eval
-{
+lives_ok {
    $parser->transform(\$xml);
-};
-
-warn $@ if $DEBUGGING;
-
-ok(! $@, "transform");
+} "transform";
 
 my $correct = "<foo>This is a test</foo>";
 
 my $outstr;
 
 warn $outstr if $DEBUGGING;
-eval
-{
-  $outstr = $parser->toString();
-  die unless $outstr;
-};
 
-warn $@ if $DEBUGGING;
-
-ok(!$@,"toString works");
+lives_ok {
+  ok $outstr = $parser->toString(), "got some output";
+} "toString works";
 
 
-ok($outstr eq $correct,"Output meets expectations - with toString");
+is($outstr , $correct,"Output meets expectations - with toString");
 
 $correct =<<EOC;
 <?xml version="1.0" encoding="ISO-8859-1"?>
@@ -78,16 +61,9 @@ EOC
 
 chomp($correct);
 
-eval
-{
-   $outstr = $parser->serve(\$xml,http_headers => 0);
-   die unless $outstr;
-};
+lives_ok {
+   ok $outstr = $parser->serve(\$xml,http_headers => 0), "serve with http_headers";
+} "serve(), works";
 
-
-warn $outstr if $DEBUGGING;
-
-ok(!$@,"serve(), works");
-
-ok($outstr eq $correct,"Output meets expectations with declarations");
+is($outstr , $correct,"Output meets expectations with declarations");
 
