@@ -1,12 +1,13 @@
-# $Id: params.t,v 1.2 2001/12/17 11:32:09 gellyfish Exp $
-# check params && the interface
+
+use strict;
+use warnings;
 
 use Test::Most tests => 7;
-use strict;
 use_ok('XML::XSLT');
 
-my $parser = eval { 
-XML::XSLT->new (<<'EOS', warnings => 'Active');
+my $parser;
+lives_ok { 
+$parser = XML::XSLT->new (<<'EOS', warnings => 'Active');
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 
@@ -18,26 +19,23 @@ XML::XSLT->new (<<'EOS', warnings => 'Active');
 
 </xsl:stylesheet>
 EOS
-};
+} "New from literal stylesheet";
 
-ok(! $@,"New from literal stylesheet");
 ok($parser,"Parser is defined");
 
-eval {
+lives_ok {
 $parser->transform(\<<EOX);
 <?xml version="1.0"?><doc><a><b/></a><b/></doc>
 EOX
-};
-
-ok(! $@,"transform from on literal XML");
+} "transform from on literal XML";
 
 
-my $outstr= eval { $parser->toString };
+my $outstr; 
 
-ok(! $@, "toString works");
+lives_ok { $outstr = $parser->toString } "toString works";
 
 ok($outstr,"toString created output");
 
 my $correct='[ param1=value1 ][ param1=undefined ]';
 
-ok( $correct eq $outstr,"Output is as expected");
+is( $correct , $outstr,"Output is as expected");
