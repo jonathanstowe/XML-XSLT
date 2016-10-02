@@ -1,19 +1,15 @@
 #!/usr/bin/perl
-# Test select/match with various special paths
-# $Id: select.t,v 1.2 2004/02/19 08:38:41 gellyfish Exp $
-
-use Test::Most tests => 4;
-
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+use Test::Most tests => 7;
+
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
 
-eval
-{
+lives_ok {
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -42,13 +38,10 @@ EOX
                                                                                 
   my $wanted = q%<out>Processing-Instruction 1 type='text/xml'</out>%;
   my $outstr =  $parser->toString;
-  die "$outstr ne $wanted\n" unless $outstr eq $wanted;
-};
+  is $outstr , $wanted , "got expected output";
+} "select single processing-instruction()";
 
-ok(!$@,"select single processing-instruction()");
-
-eval
-{
+lives_ok {
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -77,13 +70,10 @@ EOX
                                                                                 
   my $wanted = q%<out> TEST COMMENT </out>%;
   my $outstr =  $parser->toString;
-  die "$outstr ne $wanted\n" unless $outstr eq $wanted;
-};
+  is $outstr , $wanted, "got expected output";
+} "select single comment()";
 
-ok(!$@,"select single comment()");
-
-eval
-{
+lives_ok {
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -110,7 +100,5 @@ EOX
                                                                                 
   my $wanted = q%<out>TEST TEXT</out>%;
   my $outstr =  $parser->toString;
-  die "$outstr ne $wanted\n" unless $outstr eq $wanted;
-};
-
-ok(!$@,"select text()");
+  is $outstr ,  $wanted, "got expected output";
+} "select text()";
