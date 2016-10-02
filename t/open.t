@@ -1,23 +1,22 @@
-use Test::Most tests => 1;
-use XML::XSLT;
 use strict;
+use warnings;
+
+use Test::Most tests => 2;
+use XML::XSLT;
 
 use FindBin qw($Bin);
 
 my $xslt;
-eval
-{
+
+lives_ok {
  local $^W = 0; # don't understand the Expat warning yet
- $xslt = XML::XSLT->new (Source => "$Bin/test_data/open.xsl",debug => 0);
+ $xslt = XML::XSLT->new(Source => "$Bin/test_data/open.xsl",debug => 0);
  $xslt->open_xsl("$Bin/test_data/open.xsl");
  $xslt->transform("$Bin/test_data/open.xml");
-};
-SKIP:
-{
+} "open_xsl";
+
 TODO:
 {
-   skip "Hmm",1 if $@;
-   local $TODO = "open_xsl() doesn't work a second time";
+   local $TODO = "open_xsl() doesn't work a second time see https://github.com/jonathanstowe/XML-XSLT/issues/3";
    ok($xslt->toString,"open_xsl()");
-}
 }
