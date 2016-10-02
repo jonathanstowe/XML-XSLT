@@ -1,8 +1,7 @@
-# Test miscellaneous features
-# $Id: features.t,v 1.1 2001/12/17 11:32:09 gellyfish Exp $
-
 use strict;
-use Test::Most tests => 3;
+use warnings;
+
+use Test::Most tests => 4;
 
 use_ok('XML::XSLT');
 
@@ -18,22 +17,16 @@ EOS
 
 my $parser;
 
-eval
-{
-   $parser = XML::XSLT->new(\$sheet);
-   die unless $parser;
-};
-
-ok(! $@, "Testing parse of <xsl:message> and <xsl:text>");
+lives_ok {
+   ok $parser = XML::XSLT->new(\$sheet), "get parser";
+}  "Testing parse of <xsl:message> and <xsl:text>";
 
 my $xml = '<data>foo</data>';
 
-SKIP:
+TODO:
 {
-  skip("Message not implemented",1);
-  eval
-  {
+  local $TODO = "Message not implemented";
+  throws_ok {
     $parser->transform($xml);
-  }; 
-  ok($@,"Message");
+  } "Message";
 }
