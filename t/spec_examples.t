@@ -1,12 +1,10 @@
-# The examples from the 1.1 Working Draft
-# $Id: spec_examples.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
-
-use Test::Most tests => 8;
-
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+use Test::Most tests => 12;
+
+
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
@@ -113,31 +111,18 @@ EOE
 chomp($expected);
 my $parser;
 
-eval
-{
-   $parser = XML::XSLT->new($stylesheet,debug => $DEBUGGING);
-   die unless $parser;
-};
-
-warn $@ if $DEBUGGING;
-
-ok(!$@,'Can parse example stylesheet');
+lives_ok {
+   ok $parser = XML::XSLT->new($stylesheet,debug => $DEBUGGING), "got parser";
+} 'Can parse example stylesheet';
 
 my $outstr;
-eval
-{
-   $outstr = $parser->serve(\$xml,http_headers => 0);
-   die "no output" unless $outstr;
-};
+
+lives_ok {
+   ok $outstr = $parser->serve(\$xml,http_headers => 0), "got output";
+} 'serve produced output';
 
 
-warn $@ if $DEBUGGING;
-
-ok(!$@,'serve produced output');
-
-warn $outstr if $DEBUGGING;
-
-ok($outstr eq $expected,'Matches output');
+is($outstr, $expected,'Matches output');
 
 $parser->dispose();
 
@@ -234,27 +219,20 @@ $expected =<<EOE;
 </html>
 EOE
 
-eval
-{
-   $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-   die unless $parser;
-};
+lives_ok {
+   ok $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING), "got a parser";
+} 'Wahay it can parse literal result';
 
-ok(!$@,'Wahay it can parse literal result');
-
-eval
-{
-   $outstr = $parser->serve(\$xml,http_headers => 0);
-   die unless $outstr;
-};
-
-ok(!$@,'serve at least did something');
+lives_ok {
+   ok $outstr = $parser->serve(\$xml,http_headers => 0), "got some output";
+} 'serve at least did something';
 
 ok($outstr !~ 'xsl:sort', 'xsl:sort has not reappeared');
 
-SKIP:
+TODO:
 {
-   skip("Doesn't handle xsl:sort properly",1);
-   ok( $outstr eq $expected,'Great it does Literal stylesheets');
+   local $TODO = "Doesn't handle xsl:sort properly";
+   is( $outstr, $expected,'Great it does Literal stylesheets');
 }
+
 print $outstr if $DEBUGGING;
