@@ -34,12 +34,11 @@ use Carp;
 use constant NS_XSLT  => 'http://www.w3.org/1999/XSL/Transform';
 use constant NS_XHTML => 'http://www.w3.org/TR/xhtml1/strict';
 
-use vars qw ( $VERSION @ISA @EXPORT_OK $AUTOLOAD );
+our $VERSION = '0.50_5';
 
-$VERSION = '0.50_5';
+use base qw( Exporter );
 
-@ISA       = qw( Exporter );
-@EXPORT_OK = qw( &transform &serve );
+our @EXPORT_OK = qw( &transform &serve );
 
 my %deprecation_used;
 
@@ -1409,6 +1408,8 @@ sub process
     $self->debug("done!");
     $self->_outdent();
 }
+
+our $AUTOLOAD;
 
 # Handles deprecations.
 sub AUTOLOAD
