@@ -1,17 +1,14 @@
-# Test that attributes work
-# $Id: attributes.t,v 1.4 2004/02/17 10:44:29 gellyfish Exp $
 
-use Test::Most tests => 5;
+use Test::Most tests => 9;
 
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
-eval
-{
+lives_ok {
    my $stylesheet = <<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -38,13 +35,10 @@ EOX
 
     $parser->dispose();
 
-   die "$outstr ne $expected\n" unless $outstr eq $expected;
-};
+   is $outstr , $expected, "got expected output";
+} "xsl:attribute works";
 
-ok(!$@, "xsl:attribute works");
-
-eval
-{
+lives_ok {
    my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -88,17 +82,12 @@ EOE
   chomp($expected);
 
   warn "$outstr\n" if $DEBUGGING;
-  die "$outstr ne $expected\n" unless $outstr eq $expected;
+  is $outstr , $expected, "got expected output";
 
   $parser->dispose();
-};
+} "attribute-set in element";
 
-warn "$@\n" if $DEBUGGING;
-
-ok(!$@, "attribute-set in element");
-
-eval
-{
+lives_ok {
    my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:transform xmlns:xsl="http://www.w3.org/1999/XSL/Transform"
@@ -148,17 +137,12 @@ EOE
   chomp($expected);
 
   warn "$outstr\n" if $DEBUGGING;
-  die "$outstr ne $expected\n" unless $outstr =~ /$expected/;
+  like $outstr,  qr/$expected/, "got expected output";
 
   $parser->dispose();
-};
+}  "nested attribute-sets";
 
-warn "$@\n" if $DEBUGGING;
-
-ok(!$@, "nested attribute-sets");
-
-eval
-{
+lives_ok {
    my $stylesheet =<<EOS;
 <xsl:stylesheet
   version="1.0"
@@ -187,12 +171,8 @@ EOS
 
 
   warn "$outstr\n" if $DEBUGGING;
-  die "$outstr contains xmlns declaration\n" if $outstr =~ /xmlns:xsl/ ;
+  unlike $outstr , qr/xmlns:xsl/, "output does not contain namespace declaration" ;
 
   $parser->dispose();
 
-};
-
-warn "$@\n" if $DEBUGGING;
-
-ok(!$@, "do not output namespace declaration");
+} "do not output namespace declaration";
