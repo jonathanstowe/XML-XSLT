@@ -1,14 +1,12 @@
-#!/usr/bin/perl -w
-# Test for correct operation of variables
-# $Id: variable.t,v 1.4 2007/05/25 15:16:18 gellyfish Exp $
+#!/usr/bin/perl
 
-
-use Test::Most tests => 16;
 use strict;
+use warnings;
 
-use vars qw($DEBUGGING);
+use Test::Most tests => 25;
 
-$DEBUGGING = 0;
+
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
@@ -34,38 +32,22 @@ EOX
 my $correct = '*This is a test*';
 my $parser;
 
-eval 
-{
-   $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING );
-   die unless $parser;
-};
+lives_ok {
+   ok $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING ), "got a parser";
+} "new from literal stylesheet";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"new from literal stylesheet");
-
-eval
-{
+lives_ok {
    $parser->transform(\$xml);
-};
-
-warn $@ if $DEBUGGING;
-ok(! $@, "transform" );
+} "transform" ;
 
 my $outstr;
                                                                                 
-eval
-{
-  $outstr = $parser->toString();
-  die unless $outstr;
-};
-                                                                                
-warn $outstr if $DEBUGGING;
-warn $@ if $DEBUGGING;
-                                                                                
-ok(!$@,"toString works");
+lives_ok {
+  ok $outstr = $parser->toString(), "got some output";
+} "toString works";
                                                                                 
                                                                                 
-ok($outstr eq $correct,"Output meets expectations - with toString");
+is($outstr, $correct,"Output meets expectations - with toString");
 
 $stylesheet =<<'EOS';
 <?xml version="1.0"?>
@@ -79,30 +61,19 @@ $stylesheet =<<'EOS';
 </xsl:transform>
 EOS
 
-eval
-{
-    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-    die unless $parser;
-};
+lives_ok {
+    ok $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING), "got parser";
+} 'Can parse template value as variable';
 
-ok(!$@, 'Can parse template value as variable');
-
-eval
-{
+lives_ok {
    $parser->transform(\$xml);
-};
+} 'transform';
 
-ok(!$@, 'transform');
+lives_ok {
+   ok $outstr = $parser->toString(), "got some output";
+} 'toString';
 
-eval
-{
-   $outstr = $parser->toString();
-   die unless $outstr;
-};
-
-ok(!$@,'got some output');
-
-ok($outstr eq $correct,'Got expected output');
+is($outstr, $correct,'Got expected output');
 
 $stylesheet =<<'EOS';
 <?xml version="1.0"?>
@@ -121,33 +92,21 @@ $xml =<<EOX;
 <foo attr="*This is a test*" />
 EOX
 
-eval
-{
-    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-    die unless $parser;
-};
+lives_ok {
+    ok $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING), "got a parser";
+} 'Can parse template';
 
-ok(!$@, 'Can parse template');
-
-eval
-{
+lives_ok {
    $parser->transform(\$xml);
-};
+} 'transform';
 
-ok(!$@, 'transform');
+lives_ok {
+   ok $outstr = $parser->toString(), "got some output";
+} 'got some output';
 
-eval
-{
-   $outstr = $parser->toString();
-   die unless $outstr;
-};
+is($outstr, $correct,'Got expected output');
 
-ok(!$@,'got some output');
-
-ok($outstr eq $correct,'Got expected output');
-
-eval
-{
+lives_ok {
     $stylesheet =<<'EOS';
 <?xml version='1.0' encoding='utf-8'?>
 <xsl:stylesheet version='1.0' xmlns:xsl='http://www.w3.org/1999/XSL/Transform'>
@@ -171,10 +130,8 @@ EOX
    $outstr = $parser->toString();
 
    $correct = '<p>param1 = One</p><p>param2 = Two</p>';
-   die "$outstr ne $correct" unless $outstr eq $correct;
-};
-
-ok(!$@,"external variables work as expected");
+   is $outstr , $correct, "got expected output";
+} "external variables work as expected";
 
 $xml =<<EOX;
 <?xml version='1.0' encoding='utf-8'?>
@@ -203,8 +160,7 @@ $stylesheet =<<'EOS';
 </xsl:stylesheet>
 EOS
 
-eval
-{
+lives_ok {
    $parser = XML::XSLT->new($stylesheet, debug => $DEBUGGING);
 
    $parser->transform(\$xml);
@@ -212,10 +168,8 @@ eval
    $outstr = $parser->toString();
 
    $correct = q%<p>param1 exists</p><p>param1's value is: test</p><p>param1 is equal to "test"</p>%;
-   die "$outstr ne $correct" unless $outstr eq $correct;
-};
-
-ok(!$@,'Variables work in tests');
+   is $outstr, $correct, "got expected output";
+} 'Variables work in tests';
 
 $xml =<<EOXML;
 <?xml version="1.0" encoding="iso-8859-1"?>
@@ -233,12 +187,10 @@ xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
 </xsl:stylesheet>
 EOXSLT
 
-eval
-{
+lives_ok {
    my $xslt = new XML::XSLT( \$stylesheet, variables => { x => "bar" } );
    $xslt->transform( \$xml );
    my $out = $xslt->toString();
    my $correct = '<test>bar</test>';
-   die "$out ne $correct" unless $out eq $correct;
-};
-ok(!$@, "ordering of parameters");
+   is $out , $correct, "got expected output";
+} "ordering of parameters";
