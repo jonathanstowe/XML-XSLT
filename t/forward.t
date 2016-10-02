@@ -1,13 +1,9 @@
-# Test forward compatibility
-# $Id: forward.t,v 1.2 2002/01/09 09:17:40 gellyfish Exp $
-
 use strict;
+use warnings;
 
-use vars qw($DEBUGGING);
+our $DEBUGGING = 0;
 
-$DEBUGGING = 0;
-
-use Test::Most tests => 8;
+use Test::Most tests => 12;
 
 use_ok('XML::XSLT');
 
@@ -37,32 +33,19 @@ EOS
 
 my $parser;
 
-eval
-{
-   $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-   die unless $parser;
-};
-
-warn $@ if $DEBUGGING;
-
-ok(! $@,'Forward compatibility as per 1.1 Working Draft');
+lives_ok { 
+    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
+    ok $parser, "got a parser";
+} 'Forward compatibility as per 1.1 Working Draft';
 
 my $xml = '<doc>Test data</doc>';
 
 my $outstr;
 
-eval
-{
+lives_ok {
    $parser->transform($xml);
-   $outstr = $parser->toString();
-   die unless $outstr;
-};
-
-warn $@ if $DEBUGGING;
-
-print $outstr if $DEBUGGING;
-
-ok(! $@, 'Check it can process this');
+   ok $outstr = $parser->toString(), "got output";
+} 'Check it can process this';
 
 my $wanted =<<EOW;
 <html><head><title>XSLT 17.0 required</title></head><body><p>Sorry, this stylesheet requires XSLT 17.0.</p></body></html>
@@ -70,7 +53,7 @@ EOW
 
 chomp($wanted);
 
-ok($outstr eq $wanted, 'Check it makes the right output');
+is($outstr , $wanted, 'Check it makes the right output');
 
 $stylesheet =<<EOS;
 <?xml version="1.0" ?>
@@ -92,33 +75,21 @@ $stylesheet =<<EOS;
 </xsl:stylesheet>
 EOS
 
-eval
-{
+lives_ok {
    $parser->dispose();
-};
+} 'dispose';
 
-ok(!$@, 'dispose');
+lives_ok {
+   ok $parser = XML::XSLT->new( \$stylesheet,debug => $DEBUGGING), "got the parser";
+} 'Another forward compat test';
 
-eval
-{
-   $parser = XML::XSLT->new( \$stylesheet,debug => $DEBUGGING) || die;
-};
-
-ok(! $@, 'Another forward compat test');
-
-eval
-{
+lives_ok {
    $parser->transform($xml);
-   $outstr = $parser->toString();
-   die unless $outstr;
-};
-
-print $outstr if $DEBUGGING;
-
-ok(! $@, 'Transform this');
+   ok $outstr = $parser->toString(), "got output";
+} 'Transform this';
 
 $wanted = 'Test data';
 
 chomp($wanted);
 
-ok($outstr eq $wanted, 'Check it makes the right output');
+is($outstr , $wanted, 'Check it makes the right output');
