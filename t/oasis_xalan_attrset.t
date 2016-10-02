@@ -14,73 +14,71 @@ use Test::XML::Structure;
 
 my $DEBUG = 0;
 
+lives_ok
+{
+
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset01.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset01.xml");
+    ok( my $out = $xslt->toString(), q~Set attribute of a LRE from single attribute set. ~ );
+    is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset01.out"), "output is as expected" );
+
+};
+
+lives_ok
+{
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset02.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset02.xml");
+    ok( my $out = $xslt->toString(), q~Set attributes of a LRE from multiple attribute sets. ~ );
+    is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset02.out"), "output is as expected" );
+
+};
+
+lives_ok
+{
+
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset03.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset03.xml");
+    ok( my $out = $xslt->toString(), q~Use xsl:element with multiple attribute sets. ~ );
+    is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset03.out"), "output is as expected" );
+
+};
+
+lives_ok
+{
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xml");
+    ok( my $out = $xslt->toString(), q~Use xsl:copy with multiple attribute sets, no conflicts. ~ );
+
+    $out =~ s/^\s+//sm;
+    $out =~ s/\s+$//sm;
+
+    is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset04.out"), "output is as expected" );
+
+};
+
+lives_ok
+{
+
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset05.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset05.xml");
+    ok( my $out = $xslt->toString(), q~Set attributes of a LRE using attribute sets that inherit. ~ );
+    ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset05.out"), "test1" ), "output is as expected" );
+
+};
+
+lives_ok
+{
+
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset06.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset06.xml");
+    ok( my $out = $xslt->toString(), q~Set attributes of a LRE using attribute sets that inherit, plus add overlapping attribute with xsl:attribute. ~ );
+    ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset06.out"), "test1" ), "output is as expected" );
+
+};
+
 TODO:
 {
-    local $TODO = 'attrset not working yet';
-
-    lives_ok
-    {
-
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset01.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset01.xml");
-        ok( my $out = $xslt->toString(), q~Set attribute of a LRE from single attribute set. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset01.out"), "output is as expected" );
-
-    };
-
-    lives_ok
-    {
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset02.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset02.xml");
-        ok( my $out = $xslt->toString(), q~Set attributes of a LRE from multiple attribute sets. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset02.out"), "output is as expected" );
-
-    };
-
-    lives_ok
-    {
-
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset03.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset03.xml");
-        ok( my $out = $xslt->toString(), q~Use xsl:element with multiple attribute sets. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset03.out"), "output is as expected" );
-
-    };
-
-    lives_ok
-    {
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset04.xml");
-        ok( my $out = $xslt->toString(), q~Use xsl:copy with multiple attribute sets, no conflicts. ~ );
-
-        if ( $out =~ /^\s*(.*?)\s*/sm )
-        {
-            $out = $1;
-        }
-
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset04.out"), "output is as expected" );
-
-    };
-
-    lives_ok
-    {
-
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset05.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset05.xml");
-        ok( my $out = $xslt->toString(), q~Set attributes of a LRE using attribute sets that inherit. ~ );
-        ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset05.out"), "test1" ), "output is as expected" );
-
-    };
-
-    lives_ok
-    {
-
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset06.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset06.xml");
-        ok( my $out = $xslt->toString(), q~Set attributes of a LRE using attribute sets that inherit, plus add overlapping attribute with xsl:attribute. ~ );
-        ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset06.out"), "test1" ), "output is as expected" );
-
-    };
+    local $TODO = "attribute sets not fully working";
 
     lives_ok
     {
@@ -101,16 +99,21 @@ TODO:
         is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset08.out"), "output is as expected" );
 
     };
+}
 
-    lives_ok
-    {
+lives_ok
+{
 
-        my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset09.xsl", debug => $DEBUG );
-        $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset09.xml");
-        ok( my $out = $xslt->toString(), q~Use xsl:copy with attribute sets that inherit, plus add overlapping attribute with xsl:attribute. ~ );
-        ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset09.out"), "foo" ), "output is as expected" );
+    my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset09.xsl", debug => $DEBUG );
+    $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset09.xml");
+    ok( my $out = $xslt->toString(), q~Use xsl:copy with attribute sets that inherit, plus add overlapping attribute with xsl:attribute. ~ );
+    ok( Test::XML::Structure->compare_attributes( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset09.out"), "foo" ), "output is as expected" );
 
-    };
+};
+
+TODO:
+{
+    local $TODO = "attribute sets not entirely working";
 
     lives_ok
     {
@@ -118,7 +121,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset10.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset10.xml");
         ok( my $out = $xslt->toString(), q~Set attributes of an LRE, using attribute sets whose names overlap, plus add overlapping attribute with xsl:attribute. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset10.out"), "output is as expected" );
+        ok(Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset10.out"),'test'), "output is as expected" );
 
     };
 
@@ -138,7 +141,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset12.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset12.xml");
         ok( my $out = $xslt->toString(), q~Set attributes of an LRE, using one attribute set with multiple attributes, and one overriding LRE attribute, and one overriding xsl:attribute attribute. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset12.out"), "output is as expected" );
+        ok( Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset12.out"),'test1'), "output is as expected" );
 
     };
 
@@ -226,7 +229,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset21.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset21.xml");
         ok( my $out = $xslt->toString(), q~Use xsl:copy with a single attribute set. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset21.out"), "output is as expected" );
+        ok( Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset21.out"),'test'), "output is as expected" );
 
     };
 
@@ -424,7 +427,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset41.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset41.xml");
         ok( my $out = $xslt->toString(), q~Test inheritance of attribute sets. A literal result element is referring an attribute set that is defined by two separate <xsl:attribute-set.../> elements with the same name. Both these elements have a use-attribute-sets attribute, which means that we have a single attribute set that inherits from two other attribute sets. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset41.out"), "output is as expected" );
+        ok( Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset41.out"),'out'), "output is as expected" );
 
     };
 
@@ -434,7 +437,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset42.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset42.xml");
         ok( my $out = $xslt->toString(), q~Test inheritance of attribute sets. A literal result element is referring an attribute set that is defined by two separate <xsl:attribute-set.../> elements with the same name. Both these elements have a use-attribute-sets attribute, which means that we have a single attribute set that inherits from two other attribute sets. Both parents attribute sets have attributes that are overridden by the child. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset42.out"), "output is as expected" );
+        ok( Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset42.out"), 'out'), "output is as expected" );
 
     };
 
@@ -444,7 +447,7 @@ TODO:
         my $xslt = XML::XSLT->new( Source => "$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset43.xsl", debug => $DEBUG );
         $xslt->transform("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/attribset/attribset43.xml");
         ok( my $out = $xslt->toString(), q~Test inheritance of attribute sets. A xsl:element instruction is referring an attribute set that is defined by two separate xsl:attribute-set elements with the same name. ~ );
-        is( $out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset43.out"), "output is as expected" );
+        ok( Test::XML::Structure->compare_attributes($out, slurp_file("$Bin/test_data/testsuite/TESTS/Xalan_Conformance_Tests/REF_OUT/attribset/attribset43.out"), 'out'), "output is as expected" );
 
     };
 
