@@ -1,17 +1,14 @@
-# $Id: xsl_cond.t,v 1.3 2001/12/17 11:32:09 gellyfish Exp $
-# check test attributes && the interface
 
-use Test::Most tests => 25;
+use Test::Most tests => 49;
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
 # element tests
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -36,14 +33,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node string eq";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node string eq");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -68,13 +61,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node string ne";
 
-ok(!$@,"text node string ne");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -99,14 +89,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr,  $correct, "got expected output";
+} "text node string lt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node string lt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -131,14 +117,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node string gt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node string gt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -163,14 +145,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node string ge";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node string ge");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -195,14 +173,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr , $correct, "got expected output";
+} "text node string le";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node string le");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -227,14 +201,11 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-ok(!$@,"text node numeric eq");
+   is $outstr,  $correct, "got expected output";
+} "text node numeric eq";
 
 
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -259,14 +230,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node numeric ne";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node numeric ne");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -291,14 +258,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node numeric lt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node numeric lt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -323,15 +286,11 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-warn $@ if $DEBUGGING;
-ok(!$@,"text node numeric gt");
+   is $outstr, $correct, "got expected output";
+} "text node numeric gt";
 
 
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -356,14 +315,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "text node numeric ge";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"text node numeric ge");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<EOS, debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -388,16 +343,12 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-warn $@ if $DEBUGGING;
-ok(!$@,"text node numeric le");
+   is $outstr, $correct, "got expected output";
+} "text node numeric le";
 
 # attribute tests
 
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -422,14 +373,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string eq";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute string eq");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -454,13 +401,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string ne";
 
-ok(!$@,"attribute string ne");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -485,14 +429,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string lt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute string lt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -517,14 +457,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string gt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute string gt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -549,14 +485,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string ge";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute string ge");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -581,14 +513,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute string le";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute string le");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -613,14 +541,11 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-ok(!$@,"attribute numeric eq");
+   is $outstr, $correct, "got expected output";
+} "attribute numeric eq";
 
 
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -645,14 +570,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute numeric ne";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute numeric ne");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -677,14 +598,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute numeric lt";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute numeric lt");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -709,15 +626,11 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute numeric gt");
+   is $outstr, $correct, "got expected output";
+} "attribute numeric gt";
 
 
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -742,14 +655,10 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
+   is $outstr, $correct, "got expected output";
+} "attribute numeric ge";
 
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute numeric ge");
-
-eval 
-{
+lives_ok {
    my $parser =  XML::XSLT->new (<<'EOS', debug => $DEBUGGING);
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -774,9 +683,6 @@ EOX
 
    $parser->dispose();
 
-   die "$outstr ne $correct\n" unless $outstr eq $correct;
-};
-
-warn $@ if $DEBUGGING;
-ok(!$@,"attribute numeric le");
+   is $outstr, $correct, "got expected output";
+} "attribute numeric le";
 
