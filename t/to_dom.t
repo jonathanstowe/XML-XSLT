@@ -1,19 +1,15 @@
-# Test that to_dom() works
-# $Id: to_dom.t,v 1.1 2007/10/05 13:44:04 gellyfish Exp $
 
 use strict;
+use warnings;
 
-use Test::Most tests => 2;
+use Test::Most tests => 3;
 
-use vars qw($DEBUGGING);
-
-$DEBUGGING = 0;
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
 my $output;
-eval
-{
+lives_ok {
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
 <xsl:stylesheet xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
@@ -32,7 +28,5 @@ EOX
 
   $output =  ref $parser->to_dom();
 
-  die $output unless $output =~ /^XML::DOM::Document$/;
-};
-
-ok(!$@,"Outputs an XML::DOM::Document");
+  isa_ok $parser->to_dom(), 'XML::DOM::Document', 'output of to_dom';
+} "Outputs an XML::DOM::Document";
