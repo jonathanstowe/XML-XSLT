@@ -30,7 +30,7 @@ EOX
 
 my $outstr;
 lives_ok {
-    $outstr= eval { $parser->toString };
+    $outstr = $parser->toString ;
 } "toString";
 
 
