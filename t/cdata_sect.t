@@ -1,12 +1,10 @@
-# Test that cdata-section elements work 
-# $Id: cdata_sect.t,v 1.4 2002/01/14 09:40:23 gellyfish Exp $
-
-use Test::Most tests => 7;
+use Test::Most tests => 11;
 
 use strict;
-use vars qw($DEBUGGING);
+use warnings;
 
-$DEBUGGING = 0;
+
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
@@ -38,30 +36,21 @@ chomp($expected);
 
 my $parser;
 
-eval
-{
+lives_ok {
    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-   die unless $parser;
-};
-
-warn $@ if $DEBUGGING;
-
-ok(!$@,'Can parse example stylesheet');
+   ok $parser, "got a parser object" ;
+} 'Can parse example stylesheet';
 
 my $outstr;
-eval
-{
+
+lives_ok {
    $outstr = $parser->serve(\$xml,http_headers => 0);
-   die "no output" unless $outstr;
-};
-
-warn $@ if $DEBUGGING;
-
-ok(!$@,'serve produced output');
+   ok $outstr, "got output";
+} 'serve produced output';
 
 warn $outstr if $DEBUGGING;
 
-ok($outstr eq $expected,'Matches output');
+is($outstr , $expected,'Matches output');
 
 $parser->dispose();
 
@@ -87,23 +76,17 @@ EOE
 
 chomp ($expected);
 
-eval
-{
+lives_ok {
    $parser = XML::XSLT->new(\$stylesheet,debug => $DEBUGGING);
-   die unless $parser;
-};
+   ok $parser, "got a parser"; 
+} 'it can parse literal result';
 
-ok(!$@,'Wahay it can parse literal result');
-
-eval
-{
+lives_ok {
    $outstr = $parser->serve(\$xml,http_headers => 0);
-   die unless $outstr;
-};
-
-ok(!$@,'serve at least did something');
+   ok $outstr, "serve produced some output";
+} 'serve lived';
 
 
-ok( $outstr eq $expected,'Preserves CDATA');
+is( $outstr ,$expected,'Preserves CDATA');
 
 print $outstr if $DEBUGGING;
