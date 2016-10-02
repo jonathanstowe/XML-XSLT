@@ -775,8 +775,7 @@ sub __extract_namespaces
     my $attr = $self->_top_xsl_node()->getAttributes;
     if ( defined $attr )
     {
-        foreach
-          my $attribute ( $self->_top_xsl_node()->getAttributes->getValues )
+        foreach my $attribute ($self->_top_xsl_node()->getAttributes->getValues)
         {
             my ( $pre, $post ) = split( ":", $attribute->getName, 2 );
             my $value = $attribute->getValue;
