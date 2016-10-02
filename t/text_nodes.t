@@ -1,11 +1,10 @@
-# Test xsl:text
-# $Id: text_nodes.t,v 1.1 2002/01/09 09:17:40 gellyfish Exp $
 
 use strict;
+use warnings;
 
 my $DEBUGGING = 0;
 
-use Test::Most tests => 2;
+use Test::Most tests => 3;
 
 
 use_ok('XML::XSLT');
@@ -64,7 +63,7 @@ EOE
 
 chomp($expected);
 
-eval
+lives_ok
 {
    my $xslt = XML::XSLT->new($stylesheet, debug => $DEBUGGING);
    
@@ -77,9 +76,5 @@ eval
 
    $xslt->dispose();
 
-   die "$outstr ne $expected\n" unless $outstr eq $expected;
-};
-
-print $@ if $DEBUGGING;
-
-ok(!$@,'text node preserved');
+   is $outstr , $expected, "got expected output";
+} 'text node preserved';
