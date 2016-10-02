@@ -1,7 +1,7 @@
 # $Id: doe.t,v 1.2 2001/12/17 11:32:08 gellyfish Exp $
 # check disable-output-escaping && the interface
 
-use Test::More tests => 7;
+use Test::Most tests => 7;
 use strict;
 use_ok('XML::XSLT');
 

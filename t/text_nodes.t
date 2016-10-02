@@ -5,7 +5,7 @@ use strict;
 
 my $DEBUGGING = 0;
 
-use Test::More tests => 2;
+use Test::Most tests => 2;
 
 
 use_ok('XML::XSLT');

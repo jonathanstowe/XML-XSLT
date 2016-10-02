@@ -1,7 +1,7 @@
 # The examples from the 1.1 Working Draft
 # $Id: spec_examples.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
 
-use Test::More tests => 8;
+use Test::Most tests => 8;
 
 use strict;
 use vars qw($DEBUGGING);

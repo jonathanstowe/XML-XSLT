@@ -3,7 +3,7 @@
 # $Id: variable.t,v 1.4 2007/05/25 15:16:18 gellyfish Exp $
 
 
-use Test::More tests => 16;
+use Test::Most tests => 16;
 use strict;
 
 use vars qw($DEBUGGING);

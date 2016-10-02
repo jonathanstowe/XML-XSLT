@@ -1,7 +1,7 @@
 # $Id: xsl_cond.t,v 1.3 2001/12/17 11:32:09 gellyfish Exp $
 # check test attributes && the interface
 
-use Test::More tests => 25;
+use Test::Most tests => 25;
 use strict;
 use vars qw($DEBUGGING);
 

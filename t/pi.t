@@ -4,7 +4,7 @@
 
 use strict;
 
-use Test::More tests => 2;
+use Test::Most tests => 2;
 
 use vars qw($DEBUGGING);
 

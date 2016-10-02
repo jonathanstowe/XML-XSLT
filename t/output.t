@@ -1,7 +1,7 @@
 # Test for 'output'  (which is hopefully fixed)
 # $Id: output.t,v 1.3 2002/01/09 09:17:40 gellyfish Exp $
 
-use Test::More tests => 7;
+use Test::Most tests => 7;
 use strict;
 
 use vars qw($DEBUGGING);

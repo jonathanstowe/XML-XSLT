@@ -1,7 +1,7 @@
 # $Id: zeroes.t,v 1.3 2001/12/17 11:32:09 gellyfish Exp $
 # check the ``0'' bug && the interface
 
-use Test::More tests => 7;
+use Test::Most tests => 7;
 
 use strict;
 use_ok('XML::XSLT');

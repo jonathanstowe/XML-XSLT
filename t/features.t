@@ -2,7 +2,7 @@
 # $Id: features.t,v 1.1 2001/12/17 11:32:09 gellyfish Exp $
 
 use strict;
-use Test::More tests => 3;
+use Test::Most tests => 3;
 
 use_ok('XML::XSLT');
 

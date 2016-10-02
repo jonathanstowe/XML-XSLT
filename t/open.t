@@ -1,4 +1,4 @@
-use Test::More tests => 1;
+use Test::Most tests => 1;
 use XML::XSLT;
 use strict;
 

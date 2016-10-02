@@ -2,7 +2,7 @@
 # Test xsl:copy
 # $Id: copy.t,v 1.1 2004/02/17 10:06:12 gellyfish Exp $
 
-use Test::More tests => 2;
+use Test::Most tests => 2;
 
 use strict;
 use vars qw($DEBUGGING);

@@ -1,7 +1,7 @@
 # Test that cdata-section elements work 
 # $Id: cdata_sect.t,v 1.4 2002/01/14 09:40:23 gellyfish Exp $
 
-use Test::More tests => 7;
+use Test::Most tests => 7;
 
 use strict;
 use vars qw($DEBUGGING);

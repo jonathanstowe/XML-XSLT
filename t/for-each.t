@@ -2,7 +2,7 @@
 # Test foreach with various selects
 # $Id: for-each.t,v 1.1 2004/02/19 08:38:41 gellyfish Exp $
 
-use Test::More tests => 4;
+use Test::Most tests => 4;
 
 use strict;
 use vars qw($DEBUGGING);

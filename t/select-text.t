@@ -1,7 +1,7 @@
 # note that the use of select="*|text()" works fine in sabletron
 # and libXSLT, but fails, returning an empty tag, in XML::XSLT
 
-use Test::More tests => 3;
+use Test::Most tests => 3;
 
 my $xml = <<EOXML;
 <story>

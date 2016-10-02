@@ -7,7 +7,7 @@ use vars qw($DEBUGGING);
 
 $DEBUGGING = 0;
 
-use Test::More tests => 8;
+use Test::Most tests => 8;
 
 use_ok('XML::XSLT');
 

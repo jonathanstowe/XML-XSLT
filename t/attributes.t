@@ -1,7 +1,7 @@
 # Test that attributes work
 # $Id: attributes.t,v 1.4 2004/02/17 10:44:29 gellyfish Exp $
 
-use Test::More tests => 5;
+use Test::Most tests => 5;
 
 use strict;
 use vars qw($DEBUGGING);
