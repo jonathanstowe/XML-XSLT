@@ -1,11 +1,9 @@
-# $Id: call_template.t,v 1.1 2002/01/08 10:11:47 gellyfish Exp $
-# Check call-template
-
 use strict;
+use warnings;
 
 my $DEBUGGING = 0;
 
-use Test::Most tests => 2;
+use Test::Most tests => 3;
 
 
 use_ok('XML::XSLT');
@@ -27,8 +25,7 @@ EOS
 
 my $xml = '<doc><div></div></doc>';
 
-eval
-{
+lives_ok {
    my $xslt = XML::XSLT->new($stylesheet, debug => $DEBUGGING);
    
    my $expected = 'doc found';
@@ -43,8 +40,5 @@ eval
 
    $xslt->dispose();
 
-   die "$outstr ne $expected\n" unless $outstr eq $expected;
-};
-
-
-ok(!$@,'Call template');
+   is $outstr ,  $expected, "got expected output";
+} 'Call template';
