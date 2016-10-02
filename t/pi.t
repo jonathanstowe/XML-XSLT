@@ -1,19 +1,13 @@
-#!/usr/nin/perl
-# Test that xsl:processing-instruction works
-# $Id: pi.t,v 1.1 2004/02/16 10:29:20 gellyfish Exp $
-
 use strict;
+use warnings;
 
-use Test::Most tests => 2;
+use Test::Most tests => 3;
 
-use vars qw($DEBUGGING);
-
-$DEBUGGING = 0;
+our $DEBUGGING = 0;
 
 use_ok('XML::XSLT');
 
-eval
-{
+lives_ok {
 
   my $stylesheet =<<EOS;
 <?xml version="1.0"?>
@@ -35,6 +29,5 @@ EOX
 
   my $wanted = '<doc><?test bar="foo"?></doc>';
   my $outstr =  $parser->toString;
-  die "$outstr ne $wanted\n" unless $outstr eq $wanted;
-};
-ok(!$@,"processing instruction text as expected");
+  is $outstr , $wanted, "got the expected output";
+} "processing instruction text as expected";
