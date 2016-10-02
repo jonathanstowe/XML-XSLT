@@ -5,6 +5,7 @@ xslt-parser
 lib/XML/XSLT.pm
 META.yml
 MANIFEST
+MANIFEST.SKIP
 examples/ChangeLog.xsl
 examples/xsltdoc.xsl
 examples/XSLT.xsl
@@ -71,4 +72,3 @@ t/zeroes.t
 t/bug_76938.t
 t/current.t
 t/select-text.t
-
